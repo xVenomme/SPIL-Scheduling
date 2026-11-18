@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispense Scheduling SPIL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: una colonna da quaderno a quadretti; ogni algoritmo = idea, ricetta, dati modificabili, passi con grafici */
+:root {
+  --paper: #f3f5f4;
+  --card: #ffffff;
+  --ink: #17201c;
+  --muted: #56645d;
+  --line: #d3dcd7;
+  --grid: rgba(23, 120, 74, 0.07);
+  --accent: #17784a;
+  --accent-soft: #e2f1e8;
+  --mark: #ffe46b;
+  --late: #c2412d;
+  --late-soft: #fbe6e1;
+  --ok: #2f7d4f;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --j0: #8ec5a4; --j1: #94b8e6; --j2: #f2b880; --j3: #cba6e2; --j4: #efd46c; --j5: #e89cab; --j6: #8dd2d5; --j7: #c6c68a;
+  --jt: #17201c;
+  --rect-op: 0.55;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111614; --card: #18201c; --ink: #e5ece8; --muted: #9aa8a1; --line: #2c3833; --grid: rgba(70, 192, 132, 0.06);
+    --accent: #4cc489; --accent-soft: #1c3428; --mark: rgba(255, 214, 70, 0.38); --late: #ff7d66; --late-soft: #3a1f1a; --ok: #5fcf8f;
+    --j0: #2f7b56; --j1: #355f97; --j2: #a2601f; --j3: #6d4797; --j4: #876f12; --j5: #964150; --j6: #1d787c; --j7: #696a2b;
+    --jt: #f3f6f4; --rect-op: 0.7;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111614; --card: #18201c; --ink: #e5ece8; --muted: #9aa8a1; --line: #2c3833; --grid: rgba(70, 192, 132, 0.06);
+  --accent: #4cc489; --accent-soft: #1c3428; --mark: rgba(255, 214, 70, 0.38); --late: #ff7d66; --late-soft: #3a1f1a; --ok: #5fcf8f;
+  --j0: #2f7b56; --j1: #355f97; --j2: #a2601f; --j3: #6d4797; --j4: #876f12; --j5: #964150; --j6: #1d787c; --j7: #696a2b;
+  --jt: #f3f6f4; --rect-op: 0.7;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+}
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; font-weight: 800; }
+h3 { font-size: 1.02rem; font-weight: 600; letter-spacing: 0.01em; }
+sub, sup { font-size: 0.72em; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .in { max-width: 780px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; }
+.brand { font-family: var(--font-display); font-weight: 800; font-size: 1rem; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.brand span { color: var(--accent); }
+.topbar select { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 0.95rem; }
+
+main { max-width: 780px; margin: 0 auto; padding: 18px 16px 80px; display: grid; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 0.88rem; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.25em; display: grid; gap: 4px; }
+
+.algohead { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: center; }
+.num { grid-row: span 2; width: 52px; height: 52px; border-radius: 50%; border: 2.5px solid var(--accent); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; color: var(--accent); }
+.nota { font-family: var(--font-mono); font-size: 0.85rem; background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 6px; justify-self: start; }
+.hl { background: linear-gradient(transparent 55%, var(--mark) 55%); padding: 0 2px; }
+.idea { border-left: 4px solid var(--accent); padding: 4px 0 4px 12px; display: grid; gap: 6px; }
+.analog { font-style: italic; color: var(--muted); }
+.recipe li::marker { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+.traps li::marker { color: var(--late); }
+
+/* editor dati */
+.exrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 0.9rem; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--card); }
+.chip:hover { border-color: var(--accent); }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.dt { font-family: var(--font-mono); font-size: 0.85rem; }
+.dt th, .dt td { border: 1px solid var(--line); padding: 4px 8px; text-align: center; white-space: nowrap; }
+.dt th { background: var(--accent-soft); font-weight: 600; }
+.dt th.rowh { text-align: left; }
+.dt td.pick, .dt th.pick { background: var(--mark); }
+.dt td.bad { color: var(--late); font-weight: 600; }
+.dt td.good { color: var(--ok); }
+.dt td.dim { color: var(--muted); opacity: 0.6; }
+.dt td.strike { text-decoration: line-through; color: var(--muted); }
+.ed input { width: 4.2em; padding: 5px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); text-align: center; font-family: var(--font-mono); font-size: 0.85rem; }
+.ed input.wide { width: 9.5em; text-align: left; }
+.ed td { padding: 3px; }
+.ed .x { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--card); border-color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 0.85rem; color: var(--muted); }
+.field input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); font-family: var(--font-mono); font-size: 0.88rem; }
+.err { color: var(--late); background: var(--late-soft); border-radius: 8px; padding: 8px 12px; font-size: 0.92rem; }
+
+/* passi */
+.stepper { display: grid; gap: 12px; }
+.dots { display: flex; flex-wrap: wrap; gap: 5px; }
+.dot { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer; padding: 0; }
+.dot.done { background: var(--accent-soft); border-color: var(--accent); }
+.dot.cur { background: var(--accent); border-color: var(--accent); color: var(--card); font-weight: 600; }
+.step { display: grid; gap: 10px; border-top: 1px dashed var(--line); padding-top: 12px; min-width: 0; }
+.step h3 .sn { font-family: var(--font-mono); color: var(--accent); margin-right: 6px; }
+.step .txt { display: grid; gap: 6px; }
+.nav { display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+.nav .btn { flex: 1; }
+.exam { border: 2px solid var(--accent); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; background: var(--accent-soft); }
+.exam h3 { color: var(--accent); }
+.exam .line { font-family: var(--font-mono); font-size: 0.88rem; }
+.seq { font-family: var(--font-mono); font-weight: 600; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.78rem; border-radius: 6px; padding: 1px 7px; border: 1px solid var(--line); }
+.pill.late { color: var(--late); border-color: var(--late); }
+.pill.ok { color: var(--ok); border-color: var(--ok); }
+.pill.acc { color: var(--accent); border-color: var(--accent); }
+.kids { display: grid; gap: 10px; }
+.kid { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 6px; }
+.kid.cut { border-style: dashed; opacity: 0.85; }
+.kid.win { border: 2px solid var(--accent); }
+.kid .btn { justify-self: start; font-size: 0.85rem; padding: 6px 12px; }
+
+/* svg */
+svg { display: block; }
+svg.gantt, svg.chart { width: 100%; max-width: 600px; height: auto; }
+svg text { font-family: var(--font-mono); fill: var(--ink); }
+.g-lbl { font-size: 11px; fill: var(--muted); }
+.g-seg { stroke: var(--ink); stroke-width: 0.8; }
+.g-txt { font-size: 11px; fill: var(--jt); font-weight: 600; }
+.g-tick { font-size: 9.5px; fill: var(--muted); }
+.g-axis { stroke: var(--muted); stroke-width: 1; }
+.g-due { fill: var(--late); font-size: 9.5px; }
+.g-dueline { stroke: var(--late); stroke-width: 1.4; stroke-dasharray: 3 2; }
+.g-ghost { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; }
+.g-idle { fill: var(--paper); stroke: var(--line); }
+.t-node rect { fill: var(--card); stroke: var(--ink); stroke-width: 1.2; }
+.t-node text { font-size: 11px; }
+.t-node .sub { font-size: 9.5px; fill: var(--muted); }
+.t-node.open rect { stroke: var(--accent); stroke-width: 1.6; }
+.t-node.cur rect { fill: var(--mark); }
+.t-node.pruned rect, .t-node.bound rect, .t-node.dom rect { stroke: var(--muted); stroke-dasharray: 4 3; }
+.t-node.pruned text, .t-node.bound text, .t-node.dom text { fill: var(--muted); }
+.t-node.sol rect { stroke: var(--ok); stroke-width: 2; }
+.t-node.opt rect { fill: var(--accent); stroke: var(--accent); }
+.t-node.opt text { fill: var(--card); }
+.t-edge { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+.t-elbl { font-size: 9.5px; fill: var(--muted); }
+.pl-grid { stroke: var(--line); stroke-width: 1; }
+.pl-axis { stroke: var(--ink); stroke-width: 1.4; }
+.pl-path { stroke: var(--accent); stroke-width: 2.6; fill: none; stroke-linejoin: round; }
+.pl-try { stroke: var(--muted); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+.pl-alt { stroke: var(--muted); stroke-width: 1.4; fill: none; opacity: 0.55; }
+.pl-pt { fill: var(--card); stroke: var(--ink); stroke-width: 1.4; }
+.pl-pt.cur { fill: var(--mark); }
+.pl-ptlbl { font-size: 10px; font-weight: 600; }
+.pl-tool { font-size: 12px; font-weight: 600; }
+.ax-lbl { font-size: 10px; fill: var(--muted); }
+
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.algo-link { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px; }
+.algo-link:hover { border-color: var(--accent); }
+.algo-link .n { grid-row: span 2; font-family: var(--font-display); font-weight: 800; color: var(--accent); font-size: 1.2rem; width: 1.6em; text-align: center; }
+.algo-link .t { font-weight: 700; }
+.algo-link .s { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.quiz { display: grid; gap: 10px; }
+.quiz .q { font-weight: 700; font-size: 1.05rem; }
+.quiz .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.trail { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.trail span::after { content: " ›"; }
+.answer { border: 2px solid var(--accent); border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--ink); }
+footer { max-width: 780px; margin: 0 auto; padding: 0 16px 40px; color: var(--muted); font-size: 0.82rem; }
+@media (max-width: 420px) { body { font-size: 16px; } h1 { font-size: 1.6rem; } .card { padding: 13px; } }
+@media (prefers-reduced-motion: no-preference) { .step { animation: fade 0.18s ease-out; } @keyframes fade { from { opacity: 0.4; transform: translateY(3px); } to { opacity: 1; transform: none; } } }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="in">
+  <a class="brand" href="#home">SPIL<span>·</span>Scheduling</a>
+  <select id="pick" aria-label="Scegli l'algoritmo"></select>
+</div></header>
+<main id="app"></main>
+<script>
+// ===================== CORE: risolutori puri =====================
+// Ogni job: {id, p, d, r, w, ...}. Nessuna dipendenza dal DOM.
+
+const byIdx = (arr) => arr.map((x, i) => i);
+
+// completamenti in sequenza (rispetta r se presente)
+function cumulate(seq) {
+  let t = 0;
+  return seq.map((j) => {
+    const s = Math.max(t, j.r || 0);
+    t = s + j.p;
+    return { job: j, S: s, C: t };
+  });
+}
+
+// ---------- 1. SPT ----------
+function sptOrder(jobs) {
+  const hasD = jobs.every((j) => Number.isFinite(j.d));
+  return jobs
+    .map((j, i) => ({ j, i }))
+    .sort((a, b) => a.j.p - b.j.p || (hasD ? a.j.d - b.j.d : 0) || a.i - b.i)
+    .map((o) => o.j);
+}
+
+// ---------- 2. WSPT ----------
+function wsptOrder(jobs) {
+  return jobs
+    .map((j, i) => ({ j, i }))
+    .sort((a, b) => a.j.p / a.j.w - b.j.p / b.j.w || a.i - b.i)
+    .map((o) => o.j);
+}
+
+// ---------- 3. EDD ----------
+function eddOrder(jobs) {
+  return jobs
+    .map((j, i) => ({ j, i }))
+    .sort((a, b) => a.j.d - b.j.d || a.j.p - b.j.p || a.i - b.i)
+    .map((o) => o.j);
+}
+
+// ---------- 4. MOORE ----------
+function moore(jobs) {
+  const order = eddOrder(jobs);
+  let seq = [];
+  const late = [];
+  const iters = [];
+  for (const j of order) {
+    seq.push(j);
+    const cum = cumulate(seq);
+    const last = cum[cum.length - 1];
+    const it = { inserted: j, seqBefore: seq.slice(), cum, C: last.C, late: last.C > j.d, removed: null };
+    if (it.late) {
+      // togli il più lungo tra quelli in sequenza (a parità, il più vicino alla fine)
+      let k = 0;
+      for (let i = 1; i < seq.length; i++) if (seq[i].p >= seq[k].p) k = i;
+      it.removed = seq[k];
+      late.push(seq[k]);
+      seq = seq.filter((_, i) => i !== k);
+      it.cumAfter = cumulate(seq);
+    }
+    it.seqAfter = seq.slice();
+    it.lateList = late.slice();
+    iters.push(it);
+  }
+  return { order, iters, ontime: seq, late, final: seq.concat(late) };
+}
+
+// ---------- parser espressioni per h_i(C) ----------
+// numeri con punto o virgola decimale ("1,5"); argomenti separati da ", " (con spazio) o ";"
+function compileH(src) {
+  const s = String(src);
+  let i = 0;
+  const ws = () => { while (i < s.length && /\s/.test(s[i])) i++; };
+  const peek = () => { ws(); return s[i]; };
+  function primary() {
+    const c = peek();
+    if (c === '(') { i++; const e = expr(); if (peek() !== ')') throw new Error('manca una ")"'); i++; return e; }
+    const mn = /^\d+(?:[.,]\d+)?/.exec(s.slice(i));
+    if (mn) { i += mn[0].length; const v = parseFloat(mn[0].replace(',', '.')); return () => v; }
+    const m = /^[A-Za-z_]\w*/.exec(s.slice(i));
+    if (!m) throw new Error('simbolo inatteso "' + (c || 'fine formula') + '"');
+    i += m[0].length;
+    const name = m[0];
+    if (peek() === '(') {
+      i++;
+      const args = [];
+      if (peek() !== ')') { args.push(expr()); while (peek() === ',' || peek() === ';') { i++; args.push(expr()); } }
+      if (peek() !== ')') throw new Error('manca una ")" dopo ' + name);
+      i++;
+      const f = { max: (a) => Math.max(...a), min: (a) => Math.min(...a), abs: (a) => Math.abs(a[0]), exp: (a) => Math.exp(a[0]), ln: (a) => Math.log(a[0]), log: (a) => Math.log(a[0]), sqrt: (a) => Math.sqrt(a[0]), pow: (a) => Math.pow(a[0], a[1]) }[name.toLowerCase()];
+      if (!f) throw new Error('funzione sconosciuta: ' + name);
+      return (env) => f(args.map((a) => a(env)));
+    }
+    return (env) => {
+      if (name === 'T') return Math.max(0, env.C - env.d);
+      if (name === 'L') return env.C - env.d;
+      if (!(name in env) || !Number.isFinite(env[name])) throw new Error('variabile sconosciuta o vuota: ' + name);
+      return env[name];
+    };
+  }
+  function unary() { const c = peek(); if (c === '-') { i++; const u = unary(); return (e) => -u(e); } if (c === '+') { i++; return unary(); } return primary(); }
+  function power() { const b = unary(); if (peek() === '^') { i++; const ex = power(); return (e) => Math.pow(b(e), ex(e)); } return b; }
+  function term() { let a = power(); for (;;) { const c = peek(); if (c !== '*' && c !== '/') return a; i++; const b = power(); const a0 = a; a = c === '*' ? (e) => a0(e) * b(e) : (e) => a0(e) / b(e); } }
+  function expr() { let a = term(); for (;;) { const c = peek(); if (c !== '+' && c !== '-') return a; i++; const b = term(); const a0 = a; a = c === '+' ? (e) => a0(e) + b(e) : (e) => a0(e) - b(e); } }
+  const e = expr();
+  if (peek() !== undefined) throw new Error('carattere inatteso "' + s[i] + '"');
+  return e;
+}
+
+// ---------- 5. LAWLER ----------
+// prec: array di [a,b] = a prima di b
+function lawler(jobs, prec) {
+  const fns = jobs.map((j) => compileH(j.h));
+  const h = (k, C) => fns[k]({ C, p: jobs[k].p, d: jobs[k].d, w: jobs[k].w });
+  const succ = jobs.map(() => []);
+  prec.forEach(([a, b]) => succ[a].push(b));
+  const placed = new Array(jobs.length).fill(false);
+  let tau = jobs.reduce((s, j) => s + j.p, 0);
+  const back = [];
+  const iters = [];
+  while (back.length < jobs.length) {
+    const cand = [];
+    jobs.forEach((j, k) => { if (!placed[k] && succ[k].every((s) => placed[s])) cand.push(k); });
+    if (!cand.length) return { error: 'Le precedenze formano un ciclo: nessun job può andare in fondo.' };
+    const vals = cand.map((k) => ({ k, v: h(k, tau) }));
+    let best = vals[0];
+    vals.forEach((o) => { if (o.v < best.v - 1e-9) best = o; });
+    const ties = vals.filter((o) => Math.abs(o.v - best.v) < 1e-9).length > 1;
+    const blocked = jobs.map((j, k) => k).filter((k) => !placed[k] && !cand.includes(k));
+    iters.push({ tau, cand: vals, pick: best.k, ties, blocked });
+    placed[best.k] = true;
+    back.push(best.k);
+    tau -= jobs[best.k].p;
+  }
+  const seqIdx = back.slice().reverse();
+  let t = 0;
+  const res = seqIdx.map((k) => { t += jobs[k].p; return { k, C: t, h: h(k, t) }; });
+  const fo = Math.max(...res.map((r) => r.h));
+  return { iters, seqIdx, res, fo };
+}
+
+// ---------- 6. EDD con preemption + B&B 1|rj|Lmax ----------
+// rest: job ancora da fare; t0 istante di partenza
+function prmpEDD(rest, t0) {
+  const rem = new Map(rest.map((j) => [j, j.p]));
+  const segs = [];
+  let t = t0;
+  const done = new Map();
+  while ([...rem.values()].some((v) => v > 1e-9)) {
+    const avail = rest.filter((j) => rem.get(j) > 1e-9 && Math.max(j.r || 0, t0) <= t + 1e-9);
+    if (!avail.length) { t = Math.min(...rest.filter((j) => rem.get(j) > 1e-9).map((j) => Math.max(j.r || 0, t0))); continue; }
+    let cur = avail[0];
+    avail.forEach((j) => { if (j.d < cur.d || (j.d === cur.d && rest.indexOf(j) < rest.indexOf(cur))) cur = j; });
+    const arrivals = rest.filter((j) => rem.get(j) > 1e-9 && Math.max(j.r || 0, t0) > t + 1e-9).map((j) => Math.max(j.r || 0, t0));
+    const nextArr = arrivals.length ? Math.min(...arrivals) : Infinity;
+    const end = Math.min(t + rem.get(cur), nextArr);
+    const last = segs[segs.length - 1];
+    if (last && last.job === cur && Math.abs(last.end - t) < 1e-9) last.end = end; else segs.push({ job: cur, start: t, end });
+    rem.set(cur, rem.get(cur) - (end - t));
+    if (rem.get(cur) <= 1e-9) done.set(cur, end);
+    t = end;
+  }
+  const count = new Map();
+  segs.forEach((s) => count.set(s.job, (count.get(s.job) || 0) + 1));
+  const preempted = [...count.entries()].filter(([, c]) => c > 1).map(([j]) => j);
+  const L = rest.map((j) => ({ job: j, C: done.get(j), L: done.get(j) - j.d }));
+  return { segs, L, preempted };
+}
+
+function bnbEval(jobs, prefix) {
+  let t = 0;
+  const fixed = prefix.map((j) => { const s = Math.max(t, j.r || 0); t = s + j.p; return { job: j, start: s, end: t, C: t, L: t - j.d }; });
+  const rest = jobs.filter((j) => !prefix.includes(j));
+  const pr = prmpEDD(rest, t);
+  const allL = fixed.map((f) => f.L).concat(pr.L.map((x) => x.L));
+  const LB = allL.length ? Math.max(...allL) : -Infinity;
+  const feasible = pr.preempted.length === 0;
+  let seq = null;
+  if (feasible) {
+    // ordine dei job dalla schedule senza interruzioni
+    seq = prefix.concat(pr.segs.map((s) => s.job));
+  }
+  return { fixed, t, pr, LB, feasible, seq };
+}
+
+function bnb(jobs) {
+  const nodes = [];
+  const events = [];
+  let nid = 0;
+  const root = { id: nid++, prefix: [], parent: null, depth: 0 };
+  Object.assign(root, bnbEval(jobs, []));
+  root.status = root.feasible ? 'sol' : 'open';
+  nodes.push(root);
+  let best = root.feasible ? { node: root, val: root.LB } : null;
+  events.push({ type: 'root', node: root, snap: new Map([[root.id, root.status]]) });
+  if (root.feasible) { root.status = 'opt'; return { nodes, events, best }; }
+  const open = [root];
+  let guard = 0;
+  while (open.length && guard++ < 500) {
+    open.sort((a, b) => a.LB - b.LB || b.depth - a.depth || a.id - b.id);
+    const node = open.shift();
+    if (best && best.val <= node.LB) { open.unshift(node); break; }
+    node.status = 'expanded';
+    const t = node.t;
+    const rest = jobs.filter((j) => !node.prefix.includes(j));
+    const kids = [];
+    for (const j of rest) {
+      const others = rest.filter((k) => k !== j);
+      const minFinish = others.length ? Math.min(...others.map((k) => Math.max(t, k.r || 0) + k.p)) : Infinity;
+      const kid = { id: nid++, prefix: node.prefix.concat([j]), parent: node, depth: node.depth + 1, job: j };
+      const blocker = others.find((k) => Math.max(t, k.r || 0) + k.p <= (j.r || 0));
+      kid.check = { rj: j.r || 0, t, minFinish, blocker };
+      if (blocker) { kid.status = 'pruned'; nodes.push(kid); kids.push(kid); continue; }
+      Object.assign(kid, bnbEval(jobs, kid.prefix));
+      if (kid.feasible) {
+        kid.status = 'sol';
+        if (!best || kid.LB < best.val) best = { node: kid, val: kid.LB };
+      } else if (best && kid.LB >= best.val) {
+        kid.status = 'bound';
+      } else {
+        kid.status = 'open';
+        open.push(kid);
+      }
+      nodes.push(kid);
+      kids.push(kid);
+    }
+    // chiudi per bound i nodi aperti che non possono migliorare
+    open.forEach((o) => { if (best && o.LB >= best.val) o.status = 'bound'; });
+    for (let i = open.length - 1; i >= 0; i--) if (open[i].status === 'bound') open.splice(i, 1);
+    const minOpen = open.length ? Math.min(...open.map((o) => o.LB)) : Infinity;
+    const stop = best && best.val <= minOpen;
+    events.push({ type: 'expand', node, kids, best: best ? { ...best } : null, minOpen, stop, snap: new Map(nodes.map((n) => [n.id, n.status])) });
+    if (stop) break;
+  }
+  if (best) best.node.status = 'opt';
+  return { nodes, events, best };
+}
+
+// ---------- 7. SMITH ----------
+function smith(jobs, dprime) {
+  const dp = dprime || jobs.map((j) => j.d);
+  let tau = jobs.reduce((s, j) => s + j.p, 0);
+  const placed = new Array(jobs.length).fill(false);
+  const back = [];
+  const iters = [];
+  while (back.length < jobs.length) {
+    const cand = [];
+    jobs.forEach((j, k) => { if (!placed[k] && dp[k] >= tau) cand.push(k); });
+    if (!cand.length) { iters.push({ tau, cand: [], pick: null }); return { iters, fail: true, tau }; }
+    let best = cand[0];
+    cand.forEach((k) => { if (jobs[k].p > jobs[best].p || (jobs[k].p === jobs[best].p && dp[k] > dp[best])) best = k; });
+    const allFree = jobs.every((j, k) => placed[k] || dp[k] >= tau);
+    iters.push({ tau, cand, pick: best, allFree });
+    placed[best] = true;
+    back.push(best);
+    tau -= jobs[best].p;
+  }
+  const seqIdx = back.slice().reverse();
+  let t = 0;
+  const res = seqIdx.map((k) => { t += jobs[k].p; return { k, C: t, L: t - jobs[k].d, Lp: t - dp[k] }; });
+  const sumC = res.reduce((s, r) => s + r.C, 0);
+  const Tmax = Math.max(0, ...res.map((r) => r.L));
+  return { iters, seqIdx, res, sumC, Tmax, fail: false };
+}
+
+function evalSeq(jobs, seqIdx) {
+  let t = 0;
+  const res = seqIdx.map((k) => { t += jobs[k].p; return { k, C: t, L: t - jobs[k].d }; });
+  return { res, sumC: res.reduce((s, r) => s + r.C, 0), Tmax: Math.max(0, ...res.map((r) => r.L)) };
+}
+
+// ---------- 8. SMITH MODIFICATO (curva di Pareto) ----------
+function smithMod(jobs) {
+  const idx = (seq) => seq.map((j) => jobs.indexOf(j));
+  const spt = evalSeq(jobs, idx(sptOrder(jobs)));
+  spt.seqIdx = idx(sptOrder(jobs));
+  const edd = evalSeq(jobs, idx(eddOrder(jobs)));
+  edd.seqIdx = idx(eddOrder(jobs));
+  const dmin = edd.Tmax, dmax = spt.Tmax;
+  const runs = [];
+  const points = [{ src: 'SPT', sumC: spt.sumC, Tmax: spt.Tmax, seqIdx: spt.seqIdx }];
+  let delta = spt.Tmax - 1;
+  let guard = 0;
+  while (delta >= dmin && guard++ < 100) {
+    const dp = jobs.map((j) => j.d + delta);
+    const sm = smith(jobs, dp);
+    const run = { delta, dp, sm };
+    runs.push(run);
+    if (sm.fail) break;
+    run.point = { src: 'Δ=' + delta, sumC: sm.sumC, Tmax: sm.Tmax, seqIdx: sm.seqIdx };
+    points.push(run.point);
+    if (sm.Tmax <= dmin) break;
+    delta = sm.Tmax - 1;
+  }
+  const eddPoint = { src: 'EDD', sumC: edd.sumC, Tmax: edd.Tmax, seqIdx: edd.seqIdx };
+  const all = points.concat([eddPoint]);
+  all.forEach((p) => { p.dominated = all.some((q) => q !== p && q.sumC <= p.sumC && q.Tmax <= p.Tmax && (q.sumC < p.sumC || q.Tmax < p.Tmax)); });
+  return { spt, edd, dmin, dmax, runs, points, eddPoint, all };
+}
+
+// ---------- 9. GILMORE-GOMORY ----------
+function gilmoreGomory(jobs) {
+  const n = jobs.length;
+  const ord = byIdx(jobs).sort((x, y) => jobs[x].b - jobs[y].b || x - y); // ord[k] = indice originale del k-esimo
+  const B = ord.map((i) => jobs[i].b), A = ord.map((i) => jobs[i].a);
+  const phi = byIdx(A).sort((x, y) => A[x] - A[y] || x - y); // phi[k] = job (rinominato) con la k-esima a
+  const LB = phi.reduce((s, pk, k) => s + Math.abs(A[pk] - B[k]), 0);
+  // cicli di phi
+  const cyc = new Array(n).fill(-1);
+  let nc = 0;
+  for (let s = 0; s < n; s++) if (cyc[s] < 0) { let x = s; while (cyc[x] < 0) { cyc[x] = nc; x = phi[x]; } nc++; }
+  const cycles = [];
+  for (let c = 0; c < nc; c++) {
+    const start = cyc.indexOf(c); const list = []; let x = start;
+    do { list.push(x); x = phi[x]; } while (x !== start);
+    cycles.push(list);
+  }
+  const swaps = [];
+  for (let k = 0; k < n - 1; k++) {
+    const cost = 2 * Math.max(0, Math.min(B[k + 1], A[phi[k + 1]]) - Math.max(B[k], A[phi[k]]));
+    swaps.push({ k, cost, same: cyc[k] === cyc[k + 1], ck: cyc[k], ck1: cyc[k + 1] });
+  }
+  // Kruskal sui cicli
+  const par = byIdx(cycles);
+  const find = (x) => (par[x] === x ? x : (par[x] = find(par[x])));
+  const chosen = [];
+  const kr = swaps.slice().sort((a, b) => a.cost - b.cost || a.k - b.k);
+  const krLog = [];
+  for (const s of kr) {
+    if (chosen.length === nc - 1) break;
+    const a = find(s.ck), b = find(s.ck1);
+    if (a === b) { krLog.push({ s, ok: false, why: s.same ? 'stesso ciclo' : 'cicli già uniti' }); continue; }
+    par[a] = b; chosen.push(s); krLog.push({ s, ok: true });
+  }
+  chosen.forEach((s) => { s.type = B[s.k] <= A[phi[s.k]] ? 1 : 2; });
+  const g1 = chosen.filter((s) => s.type === 1).sort((a, b) => b.k - a.k);
+  const g2 = chosen.filter((s) => s.type === 2).sort((a, b) => a.k - b.k);
+  const applyOrder = g1.concat(g2);
+  const cur = phi.slice();
+  const applyLog = [];
+  applyOrder.forEach((s) => { const t = cur[s.k]; cur[s.k] = cur[s.k + 1]; cur[s.k + 1] = t; applyLog.push({ s, phiNow: cur.slice() }); });
+  // giro a partire dal job originale 0 (o il primo della lista)
+  const start = ord.indexOf(0);
+  const tour = [];
+  let x = start;
+  do { tour.push(x); x = cur[x]; } while (x !== start && tour.length <= n);
+  const legs = tour.map((from, i) => { const to = tour[(i + 1) % tour.length]; return { from, to, cost: Math.abs(A[to] - B[from]) }; });
+  const total = legs.reduce((s, l) => s + l.cost, 0);
+  const extra = chosen.reduce((s, c) => s + c.cost, 0);
+  return { ord, A, B, phi, LB, cycles, cyc, swaps, chosen, krLog, applyOrder, applyLog, finalPhi: cur, tour, legs, total, extra };
+}
+
+// ---------- 10. JOHNSON ----------
+function johnson(jobs) {
+  const left = [], right = [];
+  const rem = jobs.slice();
+  const iters = [];
+  while (rem.length) {
+    let best = null, where = null;
+    // minimo globale: scorri job, prima M1 poi M2 (a parità vince M1 e il job che viene prima)
+    let mv = Infinity;
+    rem.forEach((j) => { if (j.p1 < mv) { mv = j.p1; best = j; where = 'M1'; } if (j.p2 < mv) { mv = j.p2; best = j; where = 'M2'; } });
+    // a parità di valore preferisci M1 (in testa)
+    const tieM1 = rem.find((j) => j.p1 === mv);
+    if (tieM1 && where === 'M2') { best = tieM1; where = 'M1'; }
+    const ties = rem.filter((j) => j.p1 === mv || j.p2 === mv).length > 1;
+    if (where === 'M1') left.push(best); else right.unshift(best);
+    iters.push({ job: best, where, val: mv, left: left.slice(), right: right.slice(), rem: rem.slice(), ties });
+    rem.splice(rem.indexOf(best), 1);
+  }
+  const seq = left.concat(right);
+  return { iters, seq, gantt: flow2(seq) };
+}
+function flow2(seq) {
+  let t1 = 0, t2 = 0;
+  const m1 = [], m2 = [];
+  seq.forEach((j) => {
+    const s1 = t1; t1 = s1 + j.p1; m1.push({ job: j, start: s1, end: t1 });
+    const s2 = Math.max(t1, t2); t2 = s2 + j.p2; m2.push({ job: j, start: s2, end: t2, wait: s2 - t1, idle: s2 - (m2.length ? m2[m2.length - 1].end : 0) });
+  });
+  return { m1, m2, Cmax: t2 };
+}
+
+// ---------- 11. PIANO DEI TEMPI + A* ----------
+// opsA, opsB: [{p, tool}]  ;  x = tempo di B (orizzontale), y = tempo di A (verticale)
+function pianoSetup(opsA, opsB, dup) {
+  const cum = (ops) => { let t = 0; return ops.map((o) => { const s = t; t += o.p; return { ...o, s, e: t }; }); };
+  const A = cum(opsA), B = cum(opsB);
+  const TA = A.length ? A[A.length - 1].e : 0, TB = B.length ? B[B.length - 1].e : 0;
+  const rects = [];
+  A.forEach((a, i) => B.forEach((b, j) => {
+    if (a.tool && a.tool === b.tool && !(dup || []).includes(a.tool)) rects.push({ ai: i, bj: j, tool: a.tool, x1: b.s, x2: b.e, y1: a.s, y2: a.e });
+  }));
+  return { A, B, TA, TB, rects };
+}
+function piano(opsA, opsB, dup) {
+  const P = pianoSetup(opsA, opsB, dup);
+  const { TA, TB, rects } = P;
+  const nodes = [];
+  let nid = 0;
+  const mk = (o) => { o.id = nid++; nodes.push(o); return o; };
+  const root = mk({ x: 0, y: 0, g: 0, h: Math.max(TA, TB), parent: null, label: 'O', path: [[0, 0]], status: 'open' });
+  root.f = root.g + root.h;
+  const open = [root];
+  const seen = new Map(); // "x,y" -> g migliore
+  seen.set('0,0', 0);
+  let best = null;
+  const steps = [];
+  let guard = 0;
+  while (open.length && guard++ < 400) {
+    open.sort((a, b) => a.f - b.f || a.id - b.id);
+    const node = open.shift();
+    if (best && best.cost <= node.f) { open.unshift(node); break; }
+    node.status = 'expanded';
+    const px = node.x, py = node.y;
+    const sEnd = Math.min(TB - px, TA - py);
+    // primo rettangolo toccato dalla diagonale
+    let hit = null;
+    rects.forEach((r) => {
+      const lo = Math.max(r.x1 - px, r.y1 - py, 0);
+      const hi = Math.min(r.x2 - px, r.y2 - py);
+      if (lo < hi - 1e-9 && lo < sEnd - 1e-9) {
+        if (!hit || lo < hit.lo - 1e-9 || (Math.abs(lo - hit.lo) < 1e-9 && (r.y1 < hit.r.y1 || r.x1 < hit.r.x1))) hit = { r, lo };
+      }
+    });
+    const kids = [];
+    if (!hit) {
+      const dx = px + sEnd, dy = py + sEnd;
+      const cost = node.g + Math.max(TB - px, TA - py);
+      const sol = mk({ x: TB, y: TA, g: cost, h: 0, f: cost, parent: node, label: 'F', path: [[px, py], [dx, dy], [TB, TA]], status: 'sol', isSol: true });
+      kids.push(sol);
+      if (!best || cost < best.cost) best = { cost, node: sol };
+    } else {
+      const r = hit.r;
+      const ent = { x: px + hit.lo, y: py + hit.lo };
+      // figlio "B_j prima di A_i": angolo in basso a destra (x2, y1)
+      if (py <= r.y1 + 1e-9) {
+        const sx = px + (r.y1 - py);
+        const k = { x: r.x2, y: r.y1, parent: node, label: 'B' + (r.bj + 1) + '/A' + (r.ai + 1), first: 'B', rect: r, path: [[px, py], [sx, r.y1], [r.x2, r.y1]] };
+        k.g = node.g + Math.max(k.x - px, k.y - py); k.h = Math.max(TB - k.x, TA - k.y); k.f = k.g + k.h;
+        kids.push(k);
+      }
+      // figlio "A_i prima di B_j": angolo in alto a sinistra (x1, y2)
+      if (px <= r.x1 + 1e-9) {
+        const sy = py + (r.x1 - px);
+        const k = { x: r.x1, y: r.y2, parent: node, label: 'A' + (r.ai + 1) + '/B' + (r.bj + 1), first: 'A', rect: r, path: [[px, py], [r.x1, sy], [r.x1, r.y2]] };
+        k.g = node.g + Math.max(k.x - px, k.y - py); k.h = Math.max(TB - k.x, TA - k.y); k.f = k.g + k.h;
+        kids.push(k);
+      }
+      kids.forEach((k) => {
+        mk(k);
+        const key = k.x + ',' + k.y;
+        if (seen.has(key) && seen.get(key) <= k.g) { k.status = 'dom'; return; }
+        seen.set(key, k.g);
+        if (best && k.f >= best.cost) { k.status = 'bound'; return; }
+        k.status = 'open';
+        open.push(k);
+      });
+    }
+    open.forEach((o) => { if (best && o.f >= best.cost) o.status = 'bound'; });
+    for (let i = open.length - 1; i >= 0; i--) if (open[i].status === 'bound') open.splice(i, 1);
+    const minOpen = open.length ? Math.min(...open.map((o) => o.f)) : Infinity;
+    const stop = !!best && best.cost <= minOpen;
+    steps.push({ node, hit, kids, best: best ? { ...best } : null, minOpen, stop, openIds: open.map((o) => o.id), snap: new Map(nodes.map((n) => [n.id, n.status])) });
+    if (stop) break;
+  }
+  // percorso ottimo e Gantt
+  const chain = [];
+  for (let n = best.node; n; n = n.parent) chain.unshift(n);
+  let pts = [[0, 0]];
+  chain.slice(1).forEach((n) => n.path.slice(1).forEach((p) => pts.push(p)));
+  pts = pts.filter((p, i) => i === 0 || p[0] !== pts[i - 1][0] || p[1] !== pts[i - 1][1]);
+  const gantt = pathToGantt(P, pts);
+  const prio = chain.filter((n) => n.rect).map((n) => n.label);
+  return { P, nodes, steps, best, chain, pts, gantt, prio };
+}
+function pathToGantt(P, pts) {
+  // tempo lungo il percorso
+  const tm = [0];
+  for (let i = 1; i < pts.length; i++) tm.push(tm[i - 1] + Math.max(Math.abs(pts[i][0] - pts[i - 1][0]), Math.abs(pts[i][1] - pts[i - 1][1])));
+  // istante in cui la coordinata c (0=x,1=y) lascia il valore v (inizio operazione)
+  const leave = (c, v) => {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i][c], b = pts[i + 1][c];
+      if (a <= v + 1e-9 && b > v + 1e-9) {
+        // dentro il segmento: frazione
+        const len = Math.max(Math.abs(pts[i + 1][0] - pts[i][0]), Math.abs(pts[i + 1][1] - pts[i][1]));
+        const frac = (v - a) / (b - a);
+        return tm[i] + frac * len;
+      }
+    }
+    return null;
+  };
+  const A = P.A.map((o, i) => { const s = leave(1, o.s); return { name: 'A' + (i + 1), tool: o.tool, start: s, end: s + o.p }; });
+  const B = P.B.map((o, i) => { const s = leave(0, o.s); return { name: 'B' + (i + 1), tool: o.tool, start: s, end: s + o.p }; });
+  return { A, B, Cmax: tm[tm.length - 1] };
+}
+
+// ---------- 12. SHIFTING BOTTLENECK ----------
+// jobs: [{id, ops:[{m, p}]}]
+function sbGraph(jobs, fixed) {
+  const ops = [];
+  jobs.forEach((J, j) => J.ops.forEach((o, k) => ops.push({ j, k, m: o.m, p: o.p, key: j + ':' + k })));
+  const byKey = new Map(ops.map((o) => [o.key, o]));
+  const succ = new Map(ops.map((o) => [o.key, []]));
+  const pred = new Map(ops.map((o) => [o.key, []]));
+  const add = (a, b) => { succ.get(a).push(b); pred.get(b).push(a); };
+  jobs.forEach((J, j) => J.ops.forEach((o, k) => { if (k + 1 < J.ops.length) add(j + ':' + k, j + ':' + (k + 1)); }));
+  Object.entries(fixed).forEach(([m, seq]) => {
+    const keys = seq.map((j) => { const k = jobs[j].ops.findIndex((o) => o.m === m); return j + ':' + k; });
+    for (let i = 0; i + 1 < keys.length; i++) add(keys[i], keys[i + 1]);
+  });
+  // ordine topologico
+  const indeg = new Map(ops.map((o) => [o.key, pred.get(o.key).length]));
+  const q = ops.filter((o) => indeg.get(o.key) === 0).map((o) => o.key);
+  const topo = [];
+  while (q.length) { const x = q.shift(); topo.push(x); succ.get(x).forEach((y) => { indeg.set(y, indeg.get(y) - 1); if (indeg.get(y) === 0) q.push(y); }); }
+  if (topo.length !== ops.length) return { cyclic: true };
+  const head = new Map(), tail = new Map();
+  topo.forEach((x) => { head.set(x, Math.max(0, ...pred.get(x).map((y) => head.get(y) + byKey.get(y).p))); });
+  topo.slice().reverse().forEach((x) => { tail.set(x, Math.max(0, ...succ.get(x).map((y) => tail.get(y) + byKey.get(y).p))); });
+  const Cmax = Math.max(...ops.map((o) => head.get(o.key) + o.p + tail.get(o.key)));
+  return { ops, head, tail, Cmax, succ, pred };
+}
+function shiftingBottleneck(jobs) {
+  const machines = [...new Set(jobs.flatMap((J) => J.ops.map((o) => o.m)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const fixed = {};
+  const iters = [];
+  let guard = 0;
+  let G = sbGraph(jobs, fixed);
+  const C0 = G.Cmax;
+  while (Object.keys(fixed).length < machines.length && guard++ < 20) {
+    const subs = machines.filter((m) => !(m in fixed)).map((m) => {
+      const sj = G.ops.filter((o) => o.m === m).map((o) => ({ id: jobs[o.j].id, jIdx: o.j, p: o.p, r: G.head.get(o.key), d: G.Cmax - G.tail.get(o.key) }));
+      const res = bnb(sj);
+      const seqJobs = res.best.node.seq;
+      return { m, jobs: sj, Lmax: res.best.val, seq: seqJobs.map((x) => x.jIdx), bnb: res };
+    });
+    let bn = subs[0];
+    subs.forEach((s) => { if (s.Lmax > bn.Lmax) bn = s; });
+    const it = { Cmax: G.Cmax, subs, bottleneck: bn.m, fixedBefore: { ...fixed } };
+    if (bn.Lmax <= 0) {
+      subs.forEach((s) => { fixed[s.m] = s.seq; });
+      it.allFixed = true;
+    } else {
+      fixed[bn.m] = bn.seq;
+    }
+    G = sbGraph(jobs, fixed);
+    it.CmaxAfter = G.Cmax;
+    iters.push(it);
+  }
+  // Gantt finale: inizio = head
+  const gantt = machines.map((m) => ({ m, ops: G.ops.filter((o) => o.m === m).map((o) => ({ j: o.j, start: G.head.get(o.key), end: G.head.get(o.key) + o.p })).sort((a, b) => a.start - b.start) }));
+  return { machines, iters, fixed, C0, Cmax: G.Cmax, gantt, G };
+}
+
+if (false) module.exports = { cumulate, sptOrder, wsptOrder, eddOrder, moore, compileH, lawler, prmpEDD, bnb, smith, smithMod, evalSeq, gilmoreGomory, johnson, flow2, piano, pianoSetup, shiftingBottleneck, sbGraph };
+
+</script>
+<script>
+// ===================== UI: helper grafici =====================
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (x) => {
+  if (x === Infinity) return '∞';
+  if (x === -Infinity) return '−∞';
+  if (x === null || x === undefined || Number.isNaN(x)) return '–';
+  let r = Math.round(x * 100) / 100;
+  if (Object.is(r, -0)) r = 0;
+  return String(r).replace('.', ',').replace('-', '−');
+};
+const JC = (i) => `var(--j${((i % 8) + 8) % 8})`;
+const seqStr = (names) => '<span class="seq">' + names.map(esc).join(' → ') + '</span>';
+let SVGID = 0;
+
+// tabella generica: head = [..], rows = [[cell,...]], cell = valore o {v, c (classe), h (html)}
+function tbl(head, rows, opt = {}) {
+  const cell = (x, tag) => {
+    if (x && typeof x === 'object' && !Array.isArray(x)) return `<${tag}${x.c ? ` class="${x.c}"` : ''}>${x.h !== undefined ? x.h : esc(x.v)}</${tag}>`;
+    return `<${tag}>${typeof x === 'number' ? fmt(x) : (x ?? '')}</${tag}>`;
+  };
+  let h = `<div class="scroll"><table class="dt">`;
+  if (head) h += '<tr>' + head.map((x) => cell(x, 'th')).join('') + '</tr>';
+  rows.forEach((r) => { h += '<tr>' + r.map((x, i) => cell(x, i === 0 && opt.rowHead ? 'th' : 'td')).join('') + '</tr>'; });
+  return h + '</table></div>';
+}
+// tabella "orizzontale": prima colonna = nome riga
+function htbl(rows, opt = {}) {
+  return tbl(null, rows.map((r) => [{ h: r[0], c: 'rowh' }].concat(r.slice(1))), { rowHead: true, ...opt });
+}
+
+// ---------- Gantt ----------
+// rows: [{label, segs:[{s,e,txt,ci,late,ghost,idle}]}] ; opt: {T, dues:[{t,txt,row}], noTicks, ticks:[...]}
+function gantt(rows, opt = {}) {
+  const allEnds = rows.flatMap((r) => r.segs.map((s) => s.e));
+  const T = opt.T || Math.max(1, ...allEnds, ...(opt.dues || []).map((d) => d.t));
+  const W = 400, padL = opt.labels === false ? 8 : 30, padR = 12, rowH = 24, gap = 10, top = 8;
+  const sx = (t) => padL + (t / T) * (W - padL - padR);
+  const axisY = top + rows.length * (rowH + gap) - gap + 6;
+  const hasDue = (opt.dues || []).length > 0;
+  const H = axisY + 18 + (hasDue ? 16 : 0);
+  let o = `<svg viewBox="0 0 ${W} ${H}" class="gantt" role="img" aria-label="${esc(opt.aria || 'Diagramma di Gantt')}">`;
+  rows.forEach((r, i) => {
+    const y = top + i * (rowH + gap);
+    if (opt.labels !== false) o += `<text x="${padL - 6}" y="${y + rowH / 2 + 4}" text-anchor="end" class="g-lbl">${esc(r.label || '')}</text>`;
+    r.segs.forEach((sg) => {
+      const x1 = sx(sg.s), x2 = sx(sg.e), w = Math.max(0.5, x2 - x1);
+      if (sg.ghost) {
+        o += `<rect x="${x1}" y="${y}" width="${w}" height="${rowH}" rx="3" class="g-ghost"/>`;
+      } else {
+        o += `<rect x="${x1}" y="${y}" width="${w}" height="${rowH}" rx="3" class="g-seg" style="fill:${JC(sg.ci)}${sg.late ? ';stroke:var(--late);stroke-width:2.2' : ''}"/>`;
+      }
+      if (sg.txt !== undefined && w > 11) o += `<text x="${(x1 + x2) / 2}" y="${y + rowH / 2 + 4}" text-anchor="middle" class="${sg.ghost ? 'g-tick' : 'g-txt'}">${esc(sg.txt)}</text>`;
+    });
+  });
+  o += `<line x1="${sx(0)}" y1="${axisY}" x2="${sx(T)}" y2="${axisY}" class="g-axis"/>`;
+  // tacche: inizi e fine dei segmenti
+  let ticks = opt.ticks || [0, ...new Set(rows.flatMap((r) => r.segs.filter((s) => !s.ghost).flatMap((s) => [s.s, s.e])))];
+  ticks = [...new Set(ticks)].sort((a, b) => a - b);
+  let lastX = -99;
+  ticks.forEach((t) => {
+    const x = sx(t);
+    o += `<line x1="${x}" y1="${axisY - 3}" x2="${x}" y2="${axisY + 3}" class="g-axis"/>`;
+    if (x - lastX >= 15 || t === ticks[ticks.length - 1]) { o += `<text x="${x}" y="${axisY + 14}" text-anchor="middle" class="g-tick">${fmt(t)}</text>`; lastX = x; }
+  });
+  (opt.dues || []).forEach((d) => {
+    const x = sx(d.t);
+    const ry = top + (d.row || 0) * (rowH + gap);
+    o += `<line x1="${x}" y1="${ry - 4}" x2="${x}" y2="${axisY}" class="g-dueline"/>`;
+    o += `<text x="${x}" y="${axisY + 29}" text-anchor="middle" class="g-due">${esc(d.txt)}</text>`;
+  });
+  return o + '</svg>';
+}
+// Gantt di una sequenza su macchina singola
+function ganttSeq(cum, opt = {}) {
+  const segs = cum.map((c) => ({ s: c.S, e: c.C, txt: c.job.id, ci: c.job._i, late: opt.showLate && c.C > c.job.d }));
+  const dues = opt.dues ? cum.filter((c) => opt.dues === 'all' || (opt.dues === 'late' && c.C > c.job.d)).map((c) => ({ t: c.job.d, txt: 'd' + c.job.id + '=' + fmt(c.job.d) })) : [];
+  return gantt([{ label: opt.label || 'M', segs: segs.concat(opt.extra || []) }], { T: opt.T, dues, labels: opt.labels });
+}
+
+// ---------- albero (B&B / A*) ----------
+// nodes: [{id, parentId, l1, l2, cls, edge}] ; restituisce svg con larghezza in base alle foglie
+function tree(nodes) {
+  const kids = new Map(nodes.map((n) => [n.id, []]));
+  nodes.forEach((n) => { if (n.parentId !== null && kids.has(n.parentId)) kids.get(n.parentId).push(n); });
+  const root = nodes.find((n) => n.parentId === null);
+  const BW = 66, BH = 34, HG = 12, VG = 34;
+  let leaf = 0;
+  const pos = new Map();
+  let maxD = 0;
+  (function place(n, d) {
+    maxD = Math.max(maxD, d);
+    const ch = kids.get(n.id);
+    if (!ch.length) { pos.set(n.id, { x: leaf++ * (BW + HG), d }); return; }
+    ch.forEach((c) => place(c, d + 1));
+    const xs = ch.map((c) => pos.get(c.id).x);
+    pos.set(n.id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, d });
+  })(root, 0);
+  const W = Math.max(leaf * (BW + HG) - HG + 8, BW + 8);
+  const H = (maxD + 1) * (BH + VG) - VG + 8;
+  const cx = (id) => pos.get(id).x + 4 + BW / 2, cy = (id) => pos.get(id).d * (BH + VG) + 4;
+  let o = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Albero di enumerazione">`;
+  nodes.forEach((n) => {
+    if (n.parentId === null) return;
+    const x1 = cx(n.parentId), y1 = cy(n.parentId) + BH, x2 = cx(n.id), y2 = cy(n.id);
+    o += `<path d="M${x1},${y1} C${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}" class="t-edge"/>`;
+  });
+  nodes.forEach((n) => {
+    const x = cx(n.id) - BW / 2, y = cy(n.id);
+    o += `<g class="t-node ${n.cls || ''}"><rect x="${x}" y="${y}" width="${BW}" height="${BH}" rx="7"/>`;
+    o += `<text x="${x + BW / 2}" y="${y + 14}" text-anchor="middle">${esc(n.l1)}</text>`;
+    o += `<text x="${x + BW / 2}" y="${y + 27}" text-anchor="middle" class="sub">${esc(n.l2 || '')}</text></g>`;
+  });
+  return `<div class="scroll">${o}</svg></div>`;
+}
+const LEG_TREE = `<div class="legend"><span><i style="background:var(--mark)"></i>nodo che sto aprendo</span><span><i style="border-color:var(--accent);border-width:2px"></i>aperto</span><span><i style="border-color:var(--ok);border-width:2px"></i>soluzione</span><span><i style="background:var(--accent);border-color:var(--accent)"></i>ottimo</span><span><i style="border-style:dashed;border-color:var(--muted)"></i>scartato</span></div>`;
+
+// ---------- piano dei tempi ----------
+function plane(P, opt = {}) {
+  const id = ++SVGID;
+  const padL = 40, padB = 34, padT = 12, padR = 14;
+  const s = Math.min((400 - padL - padR) / Math.max(P.TB, 1), (380 - padT - padB) / Math.max(P.TA, 1));
+  const W = padL + P.TB * s + padR, H = padT + P.TA * s + padB;
+  const X = (x) => padL + x * s, Y = (y) => padT + (P.TA - y) * s;
+  const tools = [...new Set(P.rects.map((r) => r.tool))];
+  let o = `<svg viewBox="0 0 ${W} ${H}" class="chart" style="max-width:${Math.round(W * 1.45)}px" role="img" aria-label="Piano dei tempi"><defs>`;
+  tools.forEach((t, i) => { o += `<pattern id="h${id}-${i}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:${JC(i + 2)};opacity:var(--rect-op)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--late);stroke-width:1.6;opacity:0.55"/></pattern>`; });
+  o += `</defs>`;
+  // griglia
+  P.B.forEach((b) => { o += `<line x1="${X(b.e)}" y1="${Y(0)}" x2="${X(b.e)}" y2="${Y(P.TA)}" class="pl-grid"/>`; });
+  P.A.forEach((a) => { o += `<line x1="${X(0)}" y1="${Y(a.e)}" x2="${X(P.TB)}" y2="${Y(a.e)}" class="pl-grid"/>`; });
+  // rettangoli conflitto
+  P.rects.forEach((r) => {
+    const ti = tools.indexOf(r.tool);
+    o += `<rect x="${X(r.x1)}" y="${Y(r.y2)}" width="${(r.x2 - r.x1) * s}" height="${(r.y2 - r.y1) * s}" fill="url(#h${id}-${ti})" style="stroke:var(--late);stroke-width:1.2"/>`;
+    o += `<text x="${X((r.x1 + r.x2) / 2)}" y="${Y((r.y1 + r.y2) / 2) + 4}" text-anchor="middle" class="pl-tool">${esc(r.tool)}</text>`;
+  });
+  // assi
+  o += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(P.TB)}" y2="${Y(0)}" class="pl-axis"/><line x1="${X(0)}" y1="${Y(0)}" x2="${X(0)}" y2="${Y(P.TA)}" class="pl-axis"/>`;
+  P.B.forEach((b, i) => {
+    o += `<text x="${X(b.e)}" y="${Y(0) + 12}" text-anchor="middle" class="g-tick">${fmt(b.e)}</text>`;
+    o += `<text x="${X((b.s + b.e) / 2)}" y="${Y(0) + 25}" text-anchor="middle" class="ax-lbl">B${i + 1}${b.tool ? '·' + esc(b.tool) : ''}</text>`;
+  });
+  P.A.forEach((a, i) => {
+    o += `<text x="${X(0) - 4}" y="${Y(a.e) + 3}" text-anchor="end" class="g-tick">${fmt(a.e)}</text>`;
+    o += `<text x="${X(0) - 4}" y="${Y((a.s + a.e) / 2) + 3}" text-anchor="end" class="ax-lbl">A${i + 1}${a.tool ? '·' + esc(a.tool) : ''}</text>`;
+  });
+  o += `<text x="${X(0) - 4}" y="${Y(0) + 12}" text-anchor="end" class="g-tick">0</text>`;
+  // percorsi
+  (opt.alts || []).forEach((pts) => { o += `<polyline points="${pts.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ')}" class="pl-alt"/>`; });
+  if (opt.path) o += `<polyline points="${opt.path.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ')}" class="pl-path"/>`;
+  (opt.tries || []).forEach((pts) => { o += `<polyline points="${pts.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ')}" class="pl-try"/>`; });
+  (opt.points || []).forEach((p) => {
+    o += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="8" class="pl-pt${p.cur ? ' cur' : ''}"/><text x="${X(p.x)}" y="${Y(p.y) + 3.5}" text-anchor="middle" class="pl-ptlbl">${esc(p.lbl)}</text>`;
+  });
+  o += `<text x="${X(P.TB)}" y="${Y(P.TA) - 2}" text-anchor="end" class="ax-lbl">fine (${fmt(P.TB)}, ${fmt(P.TA)})</text>`;
+  return `<div class="scroll">${o}</svg></div>`;
+}
+
+// ---------- grafico di Pareto ----------
+function paretoChart(pts) {
+  const W = 400, H = 260, pl = 40, pr = 16, pt = 14, pb = 38;
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = 0, y1 = Math.max(...ys, 1);
+  const dx = Math.max(1, x1 - x0);
+  const X = (x) => pl + ((x - x0 + dx * 0.08) / (dx * 1.16)) * (W - pl - pr);
+  const Y = (y) => pt + (1 - (y - y0) / (y1 * 1.12)) * (H - pt - pb);
+  let o = `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Curva di Pareto">`;
+  o += `<line x1="${pl}" y1="${Y(0)}" x2="${W - pr}" y2="${Y(0)}" class="pl-axis"/><line x1="${pl}" y1="${Y(0)}" x2="${pl}" y2="${pt}" class="pl-axis"/>`;
+  [...new Set(ys)].forEach((y) => { o += `<line x1="${pl}" y1="${Y(y)}" x2="${W - pr}" y2="${Y(y)}" class="pl-grid"/><text x="${pl - 5}" y="${Y(y) + 3}" text-anchor="end" class="g-tick">${fmt(y)}</text>`; });
+  let lastX = -99;
+  [...new Set(xs)].sort((a, b) => a - b).forEach((x) => { if (X(x) - lastX > 22) { o += `<text x="${X(x)}" y="${Y(0) + 13}" text-anchor="middle" class="g-tick">${fmt(x)}</text>`; lastX = X(x); } });
+  o += `<text x="${W - pr}" y="${H - 6}" text-anchor="end" class="ax-lbl">ΣF (= ΣC) →</text><text x="${pl + 4}" y="${pt + 2}" class="ax-lbl">↑ Tmax</text>`;
+  const eff = pts.filter((p) => !p.dom).sort((a, b) => a.x - b.x);
+  if (eff.length > 1) {
+    let d = `M${X(eff[0].x)},${Y(eff[0].y)}`;
+    for (let i = 1; i < eff.length; i++) d += ` H${X(eff[i].x)} V${Y(eff[i].y)}`;
+    o += `<path d="${d}" fill="none" style="stroke:var(--accent);stroke-width:1.6;stroke-dasharray:4 3"/>`;
+  }
+  pts.forEach((p, i) => {
+    o += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5.5" style="fill:${p.dom ? 'var(--card)' : 'var(--accent)'};stroke:${p.dom ? 'var(--muted)' : 'var(--accent)'};stroke-width:1.6"/>`;
+    o += `<text x="${X(p.x) + 8}" y="${Y(p.y) - 7 - (i % 2) * 9}" class="g-tick">${esc(p.lbl)}</text>`;
+  });
+  return o + '</svg>';
+}
+
+// ---------- grafo dei cicli (Gilmore-Gomory) ----------
+function cycleGraph(n, next, cycOf, names) {
+  const W = 300, H = 230, cx = 150, cy = 115, R = 88;
+  const P = (k) => [cx + R * Math.sin((2 * Math.PI * k) / n), cy - R * Math.cos((2 * Math.PI * k) / n)];
+  const id = ++SVGID;
+  let o = `<svg viewBox="0 0 ${W} ${H}" class="chart" style="max-width:420px" role="img" aria-label="Grafo dei cicli"><defs><marker id="ar${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink)"/></marker></defs>`;
+  for (let k = 0; k < n; k++) {
+    const t = next[k];
+    const [x1, y1] = P(k), [x2, y2] = P(t);
+    if (t === k) { o += `<circle cx="${x1 + (x1 - cx) * 0.24}" cy="${y1 + (y1 - cy) * 0.24}" r="12" fill="none" style="stroke:${JC(cycOf[k])};stroke-width:2.4"/>`; continue; }
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+    const ux = dx / L, uy = dy / L;
+    const sx = x1 + ux * 15, sy = y1 + uy * 15, ex = x2 - ux * 16, ey = y2 - uy * 16;
+    const bend = next[t] === k ? 26 : 14;
+    const mx = (sx + ex) / 2 - uy * bend, my = (sy + ey) / 2 + ux * bend;
+    o += `<path d="M${sx},${sy} Q${mx},${my} ${ex},${ey}" fill="none" style="stroke:${JC(cycOf[k])};stroke-width:2.6" marker-end="url(#ar${id})"/>`;
+  }
+  for (let k = 0; k < n; k++) {
+    const [x, y] = P(k);
+    o += `<circle cx="${x}" cy="${y}" r="13" style="fill:var(--card);stroke:var(--ink);stroke-width:1.4"/><text x="${x}" y="${y + 4}" text-anchor="middle" style="font-size:11px;font-weight:600">${esc(names[k])}</text>`;
+  }
+  return o + '</svg>';
+}
+
+// ---------- grafo job shop (shifting bottleneck) ----------
+function jobGraph(jobs, fixed, G) {
+  const nodeW = 50, gapX = 26, rowH = 52, padL = 30;
+  const maxOps = Math.max(...jobs.map((J) => J.ops.length));
+  const W = padL * 2 + maxOps * (nodeW + gapX) + 10, H = jobs.length * rowH + 16;
+  const pos = (j, k) => [padL + 14 + k * (nodeW + gapX) + nodeW / 2, 14 + j * rowH + 14];
+  const id = ++SVGID;
+  const machines = [...new Set(jobs.flatMap((J) => J.ops.map((o) => o.m)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  let o = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Grafo del job shop"><defs><marker id="sa${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>`;
+  jobs.forEach((J, j) => {
+    const [x0, y0] = pos(j, 0);
+    o += `<text x="6" y="${y0 + 4}" class="g-lbl">J${esc(J.id)}</text>`;
+    for (let k = 0; k + 1 < J.ops.length; k++) {
+      const [a, b] = pos(j, k), [c] = pos(j, k + 1);
+      o += `<line x1="${a + nodeW / 2}" y1="${b}" x2="${c - nodeW / 2 - 1}" y2="${b}" style="stroke:var(--muted);stroke-width:1.3" marker-end="url(#sa${id})"/>`;
+    }
+  });
+  Object.entries(fixed || {}).forEach(([m, seq]) => {
+    const mi = machines.indexOf(m);
+    for (let i = 0; i + 1 < seq.length; i++) {
+      const ja = seq[i], jb = seq[i + 1];
+      const ka = jobs[ja].ops.findIndex((x) => x.m === m), kb = jobs[jb].ops.findIndex((x) => x.m === m);
+      const [x1, y1] = pos(ja, ka), [x2, y2] = pos(jb, kb);
+      const mx = (x1 + x2) / 2 + (y2 > y1 ? 22 : -22), my = (y1 + y2) / 2;
+      o += `<path d="M${x1},${y1 + (y2 > y1 ? 12 : -12)} Q${mx},${my} ${x2},${y2 + (y2 > y1 ? -12 : 12)}" fill="none" style="stroke:${JC(mi + 1)};stroke-width:2.4" marker-end="url(#sa${id})"/>`;
+    }
+  });
+  jobs.forEach((J, j) => J.ops.forEach((op, k) => {
+    const [x, y] = pos(j, k);
+    const mi = machines.indexOf(op.m);
+    const key = j + ':' + k;
+    o += `<rect x="${x - nodeW / 2}" y="${y - 12}" width="${nodeW}" height="24" rx="12" style="fill:${JC(mi + 1)};stroke:var(--ink);stroke-width:1"/>`;
+    o += `<text x="${x}" y="${y + 4}" text-anchor="middle" class="g-txt">${esc(op.m)}·${fmt(op.p)}</text>`;
+    if (G && G.head) o += `<text x="${x - nodeW / 2}" y="${y + 23}" class="g-tick">r ${fmt(G.head.get(key))}</text>`;
+  }));
+  return `<div class="scroll">${o}</svg></div>`;
+}
+
+// ---------- stepper ----------
+function stepper(host, steps, key) {
+  const st = (stepper.state[key] = stepper.state[key] || { i: 0, all: false });
+  if (st.i >= steps.length) st.i = steps.length - 1;
+  const draw = () => {
+    let h = `<div class="btnrow"><span class="eyebrow">Passo ${st.all ? 'tutti' : st.i + 1 + ' di ' + steps.length}</span>`;
+    h += `<button class="chip" type="button" data-act="all" aria-pressed="${st.all}">Mostra tutti i passi</button></div>`;
+    if (!st.all) {
+      h += '<div class="dots">' + steps.map((s, k) => `<button type="button" class="dot ${k === st.i ? 'cur' : k < st.i ? 'done' : ''}" data-go="${k}" aria-label="Vai al passo ${k + 1}: ${esc(s.t)}">${k + 1}</button>`).join('') + '</div>';
+    }
+    const one = (s, k) => `<section class="step"><h3><span class="sn">${k + 1}.</span>${s.t}</h3>${s.x ? `<div class="txt">${s.x}</div>` : ''}${s.v || ''}</section>`;
+    h += st.all ? steps.map(one).join('') : one(steps[st.i], st.i);
+    if (!st.all) h += `<div class="nav"><button type="button" class="btn" data-act="prev" ${st.i === 0 ? 'disabled' : ''}>◀ Indietro</button><button type="button" class="btn primary" data-act="next" ${st.i === steps.length - 1 ? 'disabled' : ''}>Avanti ▶</button></div>`;
+    host.innerHTML = h;
+  };
+  host.onclick = (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.go) st.i = +b.dataset.go;
+    else if (b.dataset.act === 'prev') st.i = Math.max(0, st.i - 1);
+    else if (b.dataset.act === 'next') st.i = Math.min(steps.length - 1, st.i + 1);
+    else if (b.dataset.act === 'all') st.all = !st.all;
+    else return;
+    draw();
+    if (b.dataset.act === 'next' || b.dataset.act === 'prev' || b.dataset.go) {
+      const top = host.getBoundingClientRect().top;
+      if (top < 0) host.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }
+  };
+  draw();
+}
+stepper.state = {};
+
+// ---------- parsing dati ----------
+const num = (v) => { const s = String(v ?? '').trim().replace(',', '.'); if (s === '') return NaN; return Number(s); };
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+</script>
+<script>
+// ===================== ALGORITMI: spiegazioni + passi =====================
+function prepJobs(data, cols) {
+  if (!data.rows || !data.rows.length) throw new Error('Aggiungi almeno un job.');
+  const seen = new Set();
+  return data.rows.map((r, i) => {
+    const j = { id: String(r.id ?? '').trim() || String(i + 1), _i: i };
+    if (seen.has(j.id)) throw new Error(`Il nome "${j.id}" compare due volte: dai nomi diversi ai job.`);
+    seen.add(j.id);
+    cols.forEach((c) => {
+      const raw = String(r[c.k] ?? '').trim();
+      if (c.type === 'txt') { if (!raw && !c.opt) throw new Error(`Job ${j.id}: manca ${c.name}.`); j[c.k] = raw; return; }
+      if (raw === '') { if (c.opt) { j[c.k] = undefined; return; } throw new Error(`Job ${j.id}: manca ${c.name}.`); }
+      const v = num(raw);
+      if (Number.isNaN(v)) throw new Error(`Job ${j.id}: ${c.name} deve essere un numero (hai scritto "${raw}").`);
+      if (c.pos && v <= 0) throw new Error(`Job ${j.id}: ${c.name} deve essere maggiore di zero.`);
+      if (!c.neg && v < 0) throw new Error(`Job ${j.id}: ${c.name} non può essere negativo.`);
+      j[c.k] = v;
+    });
+    return j;
+  });
+}
+const exVal = (data, k) => String((data.extra || {})[k] ?? '').trim();
+const ids = (arr) => arr.map((j) => j.id);
+const Lcell = (L) => ({ v: fmt(L), c: L > 0 ? 'bad' : 'good' });
+const examBox = (lines) => `<div class="exam"><h3>All'esame scrivi</h3>${lines.map((l) => `<div class="line">${l}</div>`).join('')}</div>`;
+const plusChain = (cum) => cum.map((c, k) => ({ h: k === 0 ? fmt(c.C) : `<span class="muted">${fmt(cum[k - 1].C)}+${fmt(c.job.p)}=</span>${fmt(c.C)}` }));
+
+const COL = {
+  p: { k: 'p', l: 'p<sub>i</sub>', name: 'la durata p', pos: true },
+  d: { k: 'd', l: 'd<sub>i</sub>', name: 'la scadenza d', neg: true },
+  dOpt: { k: 'd', l: 'd<sub>i</sub> (facolt.)', name: 'la scadenza d', opt: true, neg: true },
+  w: { k: 'w', l: 'w<sub>i</sub>', name: 'il peso w', pos: true },
+  r: { k: 'r', l: 'r<sub>i</sub>', name: 'il rilascio r' },
+};
+const mkRows = (names, cols) => names.map((id, i) => { const o = { id }; for (const k in cols) o[k] = cols[k][i]; return o; });
+
+const ALGOS = [];
+
+// ---------------------------------------------------------------- 1 SPT
+ALGOS.push({
+  slug: 'spt', num: 1, name: 'SPT', full: 'Shortest Processing Time', nota: '1 || ΣC<sub>i</sub>',
+  goal: 'Minimizzare ΣC<sub>i</sub> (e quindi ΣF<sub>i</sub>, ΣL<sub>i</sub>, l\'attesa totale e le loro medie).',
+  idea: 'Chi ha meno da fare passa prima. Ogni job che metti in testa fa aspettare <span class="hl">tutti quelli dietro</span>, quindi in testa ci vanno i più corti.',
+  analog: 'Come alla cassa: se fai passare prima chi ha un solo prodotto, in totale si aspetta molto meno.',
+  recipe: ['Controlla: una macchina, tutti pronti a t = 0, obiettivo = somma.', 'Ordina i job per p<sub>i</sub> crescente (a parità, prima chi ha d minore).', 'Cumula: C = C del precedente + p.', 'Somma i C. Per la media dividi per n; per l\'attesa togli Σp.'],
+  traps: ['ΣF, ΣL e l\'attesa differiscono da ΣC solo per una costante: la sequenza ottima è sempre SPT.', 'L\'ultimo C deve valere Σp: è il controllo veloce dei conti.', 'Attesa di un job = C − p − r (con r = 0 è C − p).'],
+  cols: [COL.p, COL.dOpt],
+  extras: [{ k: 'euro', l: '€ per ogni ora di attesa (facoltativo)', ph: 'es. 5' }],
+  examples: [
+    { name: 'Stampante, 7 lavori', note: 'Ogni ora di attesa di un cliente vale un buono da 5 €.', rows: mkRows(['1', '2', '3', '4', '5', '6', '7'], { p: [5, 3, 8, 2, 7, 4, 6] }), extra: { euro: '5' } },
+    { name: 'Officina, 4 auto', note: 'Tutte arrivate alle 8: conta il tempo da quando arrivano a quando l\'auto è pronta.', rows: mkRows(['A', 'B', 'C', 'D'], { p: [3, 1, 4, 2] }) },
+  ],
+  rand() { const n = R(5, 7); return { rows: Array.from({ length: n }, (_, i) => ({ id: String(i + 1), p: R(1, 9) })), extra: {} }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const hasD = jobs.every((j) => Number.isFinite(j.d));
+    const seq = sptOrder(jobs), cum = cumulate(seq), n = jobs.length;
+    const sumC = cum.reduce((s, c) => s + c.C, 0), sumP = jobs.reduce((s, j) => s + j.p, 0);
+    const att = sumC - sumP;
+    const euro = num(exVal(data, 'euro'));
+    const ties = new Set(jobs.map((j) => j.p)).size < n;
+    const steps = [
+      { t: 'Leggi i dati', x: '<p>Una macchina, tutti i job pronti a t = 0, nessun peso, e l\'obiettivo è una <span class="hl">somma</span>: è un problema da SPT.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)]].concat(hasD ? [['d', ...jobs.map((j) => j.d)]] : [])) },
+      { t: 'Metti in fila dal più corto al più lungo', x: `<p>Ordino per p crescente: ${seqStr(ids(seq))}.</p>${ties ? `<p class="small muted">Ci sono durate uguali: ${hasD ? 'metto prima quello con d più piccola' : 'l\'ordine tra loro non cambia ΣC'}.</p>` : ''}`, v: htbl([['job', ...ids(seq)], ['p', ...seq.map((j) => ({ v: j.p, c: 'pick' }))]]) },
+      { t: 'Calcola i completamenti C', x: '<p>Ogni C è il C del job prima più la sua durata. Il primo ha C = p.</p>', v: htbl([['job', ...ids(seq)], ['p', ...seq.map((j) => j.p)], ['C', ...plusChain(cum)]].concat(hasD ? [['L = C − d', ...cum.map((c) => Lcell(c.C - c.job.d))]] : [])) + ganttSeq(cum) + `<p class="small muted">Controllo: l'ultimo C = ${fmt(cum[n - 1].C)} = Σp = ${fmt(sumP)} ✓</p>` },
+    ];
+    let x = `<p>ΣC = ${cum.map((c) => fmt(c.C)).join(' + ')} = <b>${fmt(sumC)}</b></p><p>Tempo medio di completamento C̄ = ΣC / n = ${fmt(sumC)} / ${n} = <b>${fmt(sumC / n)}</b></p><p>Attesa totale = ΣC − Σp = ${fmt(sumC)} − ${fmt(sumP)} = <b>${fmt(att)}</b></p>`;
+    if (hasD) x += `<p>ΣL = ΣC − Σd = <b>${fmt(sumC - jobs.reduce((s, j) => s + j.d, 0))}</b></p>`;
+    if (Number.isFinite(euro)) x += `<p>Valore dei buoni = ${fmt(euro)} € × ${fmt(att)} ore = <b>${fmt(euro * att)} €</b></p>`;
+    steps.push({ t: 'Somma e medie', x });
+    const exam = examBox([`Sequenza: ${seqStr(ids(seq))}`, `ΣC = ${fmt(sumC)} · C̄ = ${fmt(sumC / n)} · attesa = ${fmt(att)}` + (Number.isFinite(euro) ? ` · buoni = ${fmt(euro * att)} €` : ''), 'Perché SPT: obiettivo somma, ogni job pesa uguale.']);
+    return { steps, exam };
+  },
+});
+
+// ---------------------------------------------------------------- 2 WSPT
+ALGOS.push({
+  slug: 'wspt', num: 2, name: 'WSPT', full: 'Weighted Shortest Processing Time', nota: '1 || Σw<sub>i</sub>C<sub>i</sub>',
+  goal: 'Minimizzare la somma pesata Σw<sub>i</sub>C<sub>i</sub>.',
+  idea: 'Come SPT, ma i job non valgono tutti uguale. Per ogni job chiediti: <span class="hl">quanto tempo mi costa per ogni punto di importanza?</span> È il rapporto p/w: più è piccolo, prima lo fai.',
+  analog: 'Un paziente grave (w alto) con un esame veloce (p basso) passa davanti a tutti.',
+  recipe: ['Calcola per ogni job il rapporto p<sub>i</sub>/w<sub>i</sub>.', 'Ordina per p/w crescente.', 'Cumula i C.', 'Moltiplica ogni C per il suo w e somma.'],
+  traps: ['Il verso giusto: in testa va il p/w più PICCOLO (cioè w/p più grande).', 'Con tutti i pesi uguali torna SPT.', 'Vale anche per Σw<sub>i</sub>F<sub>i</sub> e Σw<sub>i</sub>L<sub>i</sub>.'],
+  cols: [COL.p, COL.w],
+  examples: [
+    { name: 'Laboratorio, 5 campioni', note: 'Ogni ora in cui un paziente aspetta il referto costa w punti.', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p: [7, 3, 5, 2, 6], w: [2, 4, 5, 1, 9] }) },
+    { name: 'Officina, 3 ordini', note: 'Ogni ora di attesa costa w euro.', rows: mkRows(['1', '2', '3'], { p: [2, 1, 3], w: [1, 4, 3] }) },
+  ],
+  rand() { const n = R(4, 6); return { rows: Array.from({ length: n }, (_, i) => ({ id: letters[i], p: R(1, 9), w: R(1, 9) })) }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const seq = wsptOrder(jobs), cum = cumulate(seq);
+    const tot = cum.reduce((s, c) => s + c.C * c.job.w, 0);
+    const steps = [
+      { t: 'Leggi i dati', x: '<p>Una macchina, tutti pronti a t = 0, ogni job ha un peso w: obiettivo Σw·C, quindi <b>WSPT</b>.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['w', ...jobs.map((j) => j.w)]]) },
+      { t: 'Calcola il rapporto p/w', x: '<p>Il rapporto dice quante ore di lavoro "spendo" per ogni punto di peso.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['w', ...jobs.map((j) => j.w)], ['p/w', ...jobs.map((j) => ({ v: fmt(j.p / j.w), c: 'pick' }))]]) },
+      { t: 'Ordina per p/w crescente', x: `<p>Sequenza: ${seqStr(ids(seq))}.</p>`, v: htbl([['job', ...ids(seq)], ['p/w', ...seq.map((j) => fmt(j.p / j.w))]]) },
+      { t: 'Cumula i C e moltiplica per w', x: '<p>Prima i C come in SPT, poi ogni C per il peso del suo job.</p>', v: htbl([['job', ...ids(seq)], ['p', ...seq.map((j) => j.p)], ['w', ...seq.map((j) => j.w)], ['C', ...plusChain(cum)], ['w·C', ...cum.map((c) => ({ v: fmt(c.C * c.job.w), c: 'pick' }))]]) + ganttSeq(cum) },
+      { t: 'Somma', x: `<p>Σw·C = ${cum.map((c) => fmt(c.C * c.job.w)).join(' + ')} = <b>${fmt(tot)}</b></p>` },
+    ];
+    return { steps, exam: examBox([`Sequenza: ${seqStr(ids(seq))}`, `Σw·C = ${fmt(tot)}`, 'Perché WSPT: obiettivo somma pesata.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 3 EDD
+ALGOS.push({
+  slug: 'edd', num: 3, name: 'EDD', full: 'Earliest Due Date', nota: '1 || L<sub>max</sub>',
+  goal: 'Minimizzare il ritardo massimo L<sub>max</sub> (e quindi T<sub>max</sub>).',
+  idea: '<span class="hl">Chi scade prima, lavora prima.</span> Così il job più urgente non viene mai scavalcato da uno che ha più margine.',
+  analog: 'Come con i compiti: prima quello da consegnare domani, poi quello di venerdì.',
+  recipe: ['Ordina i job per scadenza d<sub>i</sub> crescente.', 'Cumula i C.', 'Calcola L = C − d per ogni job.', 'L<sub>max</sub> = il più grande; T<sub>max</sub> = max(0, L<sub>max</sub>).'],
+  traps: ['L può essere negativo (job in anticipo): T invece non scende sotto 0.', 'Se EDD dà T<sub>max</sub> = 0, il vincolo "nessun ritardo" di Smith si può rispettare.', 'L\'obiettivo è un massimo, non una somma: non sommare le L.'],
+  cols: [COL.p, COL.d],
+  examples: [
+    { name: 'Artigiano, 6 ordini', note: 'Vuole limitare il danno d\'immagine dell\'ordine con il ritardo maggiore.', rows: mkRows(['A', 'B', 'C', 'D', 'E', 'F'], { p: [3, 5, 2, 6, 4, 3], d: [8, 20, 6, 15, 12, 18] }) },
+    { name: 'Esercitazione 4 novembre', note: 'Contenere al minimo il ritardo massimo.', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p: [6, 3, 5, 4, 2], d: [20, 10, 8, 6, 6] }) },
+  ],
+  rand() { const n = R(5, 6); const p = Array.from({ length: n }, () => R(1, 8)); const S = p.reduce((a, b) => a + b, 0); return { rows: p.map((x, i) => ({ id: letters[i], p: x, d: R(x + 1, S) })) }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const seq = eddOrder(jobs), cum = cumulate(seq);
+    const Ls = cum.map((c) => c.C - c.job.d), Lmax = Math.max(...Ls), worst = cum[Ls.indexOf(Lmax)].job;
+    const steps = [
+      { t: 'Leggi i dati', x: '<p>Una macchina, tutti pronti a t = 0, obiettivo un <span class="hl">massimo</span> (il ritardo peggiore): si usa <b>EDD</b>.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['d', ...jobs.map((j) => j.d)]]) },
+      { t: 'Ordina per scadenza', x: `<p>Sequenza per d crescente: ${seqStr(ids(seq))}.</p>`, v: htbl([['job', ...ids(seq)], ['p', ...seq.map((j) => j.p)], ['d', ...seq.map((j) => ({ v: j.d, c: 'pick' }))]]) },
+      { t: 'Calcola C e L = C − d', x: '<p>Rosso = in ritardo (L &gt; 0), verde = in tempo. Le linee tratteggiate sono le scadenze dei job in ritardo.</p>', v: htbl([['job', ...ids(seq)], ['p', ...seq.map((j) => j.p)], ['d', ...seq.map((j) => j.d)], ['C', ...plusChain(cum)], ['L', ...Ls.map(Lcell)]]) + ganttSeq(cum, { showLate: true, dues: 'late' }) },
+      { t: 'Prendi il massimo', x: `<p>L<sub>max</sub> = max(${Ls.map(fmt).join(', ')}) = <b>${fmt(Lmax)}</b>, dovuto al job ${esc(worst.id)}.</p><p>T<sub>max</sub> = max(0, L<sub>max</sub>) = <b>${fmt(Math.max(0, Lmax))}</b>. ${Lmax <= 0 ? 'Tutti in tempo.' : 'È il ritardo massimo più piccolo possibile: nessun altro ordine fa meglio.'}</p>` },
+    ];
+    return { steps, exam: examBox([`Sequenza EDD: ${seqStr(ids(seq))}`, `L<sub>max</sub> = ${fmt(Lmax)} · T<sub>max</sub> = ${fmt(Math.max(0, Lmax))}`, 'Perché EDD: obiettivo L<sub>max</sub>/T<sub>max</sub>, tutti disponibili a 0.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 4 MOORE
+ALGOS.push({
+  slug: 'moore', num: 4, name: 'Moore', full: 'Moore-Hodgson', nota: '1 || ΣU<sub>i</sub>',
+  goal: 'Minimizzare il numero di job in ritardo.',
+  idea: 'Conta solo <i>quanti</i> sono in ritardo, non di quanto. Vai in ordine EDD; appena uno sfora, <span class="hl">sacrifica il più lungo tra quelli già messi</span>: libera più tempo per tutti gli altri.',
+  analog: 'Se in una giornata non ce la fai, rinunci all\'impegno più lungo: con lo stesso tempo ne salvi di più.',
+  recipe: ['Ordina tutti i job in EDD.', 'Aggiungili uno alla volta in coda e calcola il C dell\'ultimo.', 'Se finisce dopo la sua d: togli il job con p più grande tra quelli in sequenza (anche l\'ultimo arrivato) e mettilo tra i ritardatari.', 'Alla fine: puntuali in ordine EDD, poi i ritardatari in qualsiasi ordine. ΣU = quanti ne hai tolti.'],
+  traps: ['Il job tolto non è per forza l\'ultimo inserito: è il PIÙ LUNGO tra tutti quelli presenti.', 'Dopo averlo tolto ricalcola i C: tutti finiscono prima.', 'Con tolleranza (es. nessuna penale entro 2 giorni) usa d\' = d + 2 e rifai Moore.'],
+  cols: [COL.p, COL.d],
+  extras: [{ k: 'euro', l: 'Penale per ogni job in ritardo (facoltativa)', ph: 'es. 400' }],
+  examples: [
+    { name: 'Lavanderia, 6 commesse', note: 'Ogni commessa fuori tempo costa 400 € fissi. Quali conviene sacrificare?', rows: mkRows(['A', 'B', 'C', 'D', 'E', 'F'], { p: [6, 4, 5, 3, 7, 2], d: [7, 9, 12, 8, 22, 6] }), extra: { euro: '400' } },
+  ],
+  rand() { const n = R(5, 7); const p = Array.from({ length: n }, () => R(1, 8)); const S = p.reduce((a, b) => a + b, 0); return { rows: p.map((x, i) => ({ id: letters[i], p: x, d: R(x, Math.round(S * 0.75)) })), extra: {} }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const m = moore(jobs);
+    const euro = num(exVal(data, 'euro'));
+    const steps = [
+      { t: 'Leggi i dati', x: '<p>Conta solo <b>quanti</b> job sono in ritardo (ΣU): si usa <b>Moore</b>.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['d', ...jobs.map((j) => j.d)]]) },
+      { t: 'Ordina in EDD', x: `<p>Ordine di inserimento: ${seqStr(ids(m.order))}.</p>`, v: htbl([['job', ...ids(m.order)], ['p', ...m.order.map((j) => j.p)], ['d', ...m.order.map((j) => j.d)]]) },
+    ];
+    const T = jobs.reduce((s, j) => s + j.p, 0);
+    m.iters.forEach((it) => {
+      const j = it.inserted;
+      let x = `<p>Metto ${esc(j.id)} in coda: C<sub>${esc(j.id)}</sub> = ${fmt(it.C)} ${it.late ? '&gt;' : '≤'} d = ${fmt(j.d)} → ${it.late ? '<span class="pill late">in ritardo</span>' : '<span class="pill ok">in tempo</span>'}</p>`;
+      let v = ganttSeq(it.cum, { T, showLate: true, dues: it.late ? 'late' : false });
+      if (it.late) {
+        x += `<p>Tra ${it.seqBefore.map((q) => `${esc(q.id)} (p=${fmt(q.p)})`).join(', ')} il più lungo è <b>${esc(it.removed.id)}</b>: lo tolgo e lo metto tra i ritardatari.</p>`;
+        v += `<p class="small muted">Dopo averlo tolto:</p>` + (it.cumAfter.length ? ganttSeq(it.cumAfter, { T }) : '<p class="small">sequenza vuota</p>');
+      }
+      x += `<p class="small">Ritardatari finora: ${it.lateList.length ? it.lateList.map((q) => `<span class="pill late">${esc(q.id)}</span>`).join(' ') : 'nessuno'}</p>`;
+      steps.push({ t: `Inserisco ${esc(j.id)}`, x, v });
+    });
+    const cumF = cumulate(m.final);
+    let x = `<p>Puntuali in EDD: ${seqStr(ids(m.ontime))}, poi i ritardatari: ${m.late.length ? seqStr(ids(m.late)) : 'nessuno'}.</p><p>ΣU = <b>${m.late.length}</b>${Number.isFinite(euro) ? ` → danno = ${m.late.length} × ${fmt(euro)} € = <b>${fmt(m.late.length * euro)} €</b>` : ''}</p>`;
+    steps.push({ t: 'Sequenza finale', x, v: htbl([['job', ...ids(m.final)], ['C', ...cumF.map((c) => c.C)], ['d', ...m.final.map((q) => q.d)], ['U', ...cumF.map((c) => ({ v: c.C > c.job.d ? 1 : 0, c: c.C > c.job.d ? 'bad' : 'good' }))]]) + ganttSeq(cumF, { showLate: true }) });
+    return { steps, exam: examBox([`Sequenza: ${seqStr(ids(m.final))}`, `Job sacrificati: ${m.late.length ? ids(m.late).join(', ') : 'nessuno'} · ΣU = ${m.late.length}` + (Number.isFinite(euro) ? ` · danno = ${fmt(m.late.length * euro)} €` : ''), 'Perché Moore: conta il numero di job in ritardo.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 5 LAWLER
+function parsePrec(txt, jobs) {
+  const out = [];
+  const s = String(txt || '').trim();
+  if (!s) return out;
+  s.split(/[,;\s]+/).filter(Boolean).forEach((tok) => {
+    const m = /^([^>→\-]+)(?:>|→|->)([^>→\-]+)$/.exec(tok);
+    if (!m) throw new Error(`Precedenza "${tok}" non capita: scrivi per esempio 4>2 (4 prima di 2).`);
+    const a = jobs.findIndex((j) => j.id === m[1]), b = jobs.findIndex((j) => j.id === m[2]);
+    if (a < 0 || b < 0) throw new Error(`Precedenza "${tok}": il job ${a < 0 ? m[1] : m[2]} non esiste.`);
+    out.push([a, b]);
+  });
+  return out;
+}
+ALGOS.push({
+  slug: 'lawler', num: 5, name: 'Lawler', full: 'Costo massimo con precedenze', nota: '1 | prec | h<sub>max</sub>',
+  goal: 'Minimizzare il massimo di una funzione di costo h<sub>i</sub>(C<sub>i</sub>) non decrescente, anche con precedenze.',
+  idea: 'Riempi la fila <span class="hl">dal fondo</span>. Il fondo finisce sempre a Σp: all\'ultimo posto metti il job a cui costa meno finire lì, scelto tra quelli che possono davvero stare in fondo (tutti i suoi successori già piazzati).',
+  analog: 'Chi può permettersi di arrivare per ultimo senza fare danni, va in fondo.',
+  recipe: ['τ = Σp (quando finisce l\'ultimo).', 'Candidati = job non piazzati con tutti i successori già piazzati.', 'Calcola h<sub>i</sub>(τ) per ogni candidato e metti in fondo quello con h minimo.', 'τ = τ − p del job piazzato e ripeti.', 'F.O. = max h<sub>i</sub>(C<sub>i</sub>) sulla sequenza finale.'],
+  traps: ['Un job con successori diventa candidato solo quando tutti i successori sono già in fondo.', 'h deve essere non decrescente in C (es. w·T, w·(C − d), 1,5·C, 2<sup>C/5</sup>).', 'Se più candidati hanno lo stesso h (es. tutti 0), l\'ordine tra loro è indifferente.', 'Senza precedenze e con h = T, Lawler dà lo stesso risultato di EDD.'],
+  cols: [COL.p, { k: 'd', l: 'd<sub>i</sub>', name: 'la scadenza d', opt: true, neg: true }, { k: 'w', l: 'w<sub>i</sub>', name: 'il peso w', opt: true }, { k: 'h', l: 'h<sub>i</sub>(C)', name: 'la funzione h', type: 'txt', wide: true }],
+  extras: [{ k: 'prec', l: 'Precedenze (es. 4>2 = 4 prima di 2)', ph: '4>2, 1>5' }],
+  help: '<p class="small muted">In h puoi usare C, d, w, p, T (= max(0, C − d)), L (= C − d), max(…), min(…), ^. Decimali con virgola o punto: 1,5*C.</p>',
+  examples: [
+    { name: '4 job con funzioni diverse', note: 'Vincolo: 4 prima di 2.', rows: mkRows(['1', '2', '3', '4'], { p: [3, 4, 2, 6], d: ['', '', '', ''], w: ['', '', '', ''], h: ['10', '1+C', '1,5*C', '2^(C/5)'] }), extra: { prec: '4>2' } },
+    { name: '6 lavori, peso × tardiness', note: 'Minimizzare il massimo di w·T. Precedenze: 1 e 2 prima di 5, 3 e 4 prima di 6.', rows: mkRows(['1', '2', '3', '4', '5', '6'], { p: [4, 3, 2, 4, 1, 1], d: [8, 12, 8, 8, 12, 13], w: [2, 1, 2, 1, 4, 3], h: Array(6).fill('w*T') }), extra: { prec: '1>5, 2>5, 3>6, 4>6' } },
+    { name: 'Impianto chimico, cisterne', note: 'Il lotto i in ritardo richiede a<sub>i</sub> cisterne per giorno di ritardo (qui a = w); conta il massimo. B prima di A e D, C prima di E.', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p: [4, 3, 5, 2, 6], d: [7, 5, 12, 9, 10], w: [3, 8, 2, 6, 4], h: Array(5).fill('w*T') }), extra: { prec: 'B>A, B>D, C>E' } },
+  ],
+  rand() {
+    const n = R(5, 6); const p = Array.from({ length: n }, () => R(1, 6)); const S = p.reduce((a, b) => a + b, 0);
+    const rows = p.map((x, i) => ({ id: String(i + 1), p: x, d: R(x, S - 2), w: R(1, 4), h: 'w*T' }));
+    const pr = []; for (let k = 0; k < 2; k++) { const a = R(1, n - 1), b = R(a + 1, n); if (!pr.includes(a + '>' + b)) pr.push(a + '>' + b); }
+    return { rows, extra: { prec: pr.join(', ') } };
+  },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    jobs.forEach((j) => { try { compileH(j.h)({ C: 1, p: j.p, d: j.d ?? NaN, w: j.w ?? NaN }); } catch (e) { throw new Error(`Job ${j.id}, funzione h: ${e.message}.`); } });
+    const prec = parsePrec(exVal(data, 'prec'), jobs);
+    const res = lawler(jobs, prec);
+    if (res.error) throw new Error(res.error);
+    const S = jobs.reduce((s, j) => s + j.p, 0);
+    const precTxt = prec.length ? prec.map(([a, b]) => `${esc(jobs[a].id)} → ${esc(jobs[b].id)}`).join(', ') : 'nessuna';
+    const succTxt = (k) => prec.filter(([a]) => a === k).map(([, b]) => jobs[b].id);
+    const rowsD = [['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)]];
+    if (jobs.some((j) => Number.isFinite(j.d))) rowsD.push(['d', ...jobs.map((j) => j.d ?? '')]);
+    if (jobs.some((j) => Number.isFinite(j.w))) rowsD.push(['w', ...jobs.map((j) => j.w ?? '')]);
+    rowsD.push(['h(C)', ...jobs.map((j) => ({ v: j.h }))]);
+    const steps = [{ t: 'Leggi i dati', x: `<p>Obiettivo: il <span class="hl">massimo</span> di un costo h<sub>i</sub>(C<sub>i</sub>), con precedenze: si usa <b>Lawler</b>.</p><p>Precedenze: ${precTxt}.</p>`, v: htbl(rowsD) }];
+    steps.push({ t: 'Parti dal fondo: τ = Σp', x: `<p>L'ultimo job finisce sempre a τ = Σp = ${jobs.map((j) => fmt(j.p)).join(' + ')} = <b>${fmt(S)}</b>. Ora riempio i posti da destra verso sinistra.</p>` });
+    const placedSegs = [];
+    let end = S;
+    res.iters.forEach((it, n) => {
+      const pk = jobs[it.pick];
+      let x = `<p>τ = <b>${fmt(it.tau)}</b>. Candidati (job con tutti i successori già piazzati): ${it.cand.map((c) => esc(jobs[c.k].id)).join(', ')}.</p>`;
+      if (it.blocked.length) x += `<p class="small muted">Non ancora candidati: ${it.blocked.map((k) => `${esc(jobs[k].id)} (deve venire prima di ${succTxt(k).filter((s) => !res.seqIdx.slice(res.seqIdx.length - n).map((q) => jobs[q].id).includes(s)).map(esc).join(', ') || '…'})`).join(', ')}.</p>`;
+      x += `<p>Il costo più basso è quello di <b>${esc(pk.id)}</b>: lo metto in fondo, nell'intervallo [${fmt(it.tau - pk.p)}, ${fmt(it.tau)}]. Nuovo τ = ${fmt(it.tau)} − ${fmt(pk.p)} = ${fmt(it.tau - pk.p)}.${it.ties ? ' <span class="small muted">(parità: la scelta tra i job con lo stesso h è indifferente)</span>' : ''}</p>`;
+      placedSegs.push({ s: end - pk.p, e: end, txt: pk.id, ci: pk._i });
+      end -= pk.p;
+      const segs = placedSegs.slice();
+      if (end > 0) segs.push({ s: 0, e: end, txt: 'da riempire', ghost: true });
+      const v = htbl([['candidato', ...it.cand.map((c) => esc(jobs[c.k].id))], [`h(${fmt(it.tau)})`, ...it.cand.map((c) => ({ v: fmt(c.v), c: c.k === it.pick ? 'pick' : '' }))]]) + gantt([{ label: 'M', segs }], { T: S });
+      steps.push({ t: `Posizione ${jobs.length - n} (dal fondo)`, x, v });
+    });
+    const seq = res.seqIdx.map((k) => jobs[k]);
+    steps.push({ t: 'Leggi la sequenza da sinistra', x: `<p>Sequenza: ${seqStr(ids(seq))}.</p><p>F.O. = max h<sub>i</sub>(C<sub>i</sub>) = max(${res.res.map((r) => fmt(r.h)).join(', ')}) = <b>${fmt(res.fo)}</b></p>`, v: htbl([['job', ...ids(seq)], ['C', ...res.res.map((r) => r.C)], ['h(C)', ...res.res.map((r) => ({ v: fmt(r.h), c: Math.abs(r.h - res.fo) < 1e-9 ? 'pick' : '' }))]]) + ganttSeq(cumulate(seq)) });
+    return { steps, exam: examBox([`Sequenza: ${seqStr(ids(seq))}`, `F.O. = min max h<sub>i</sub>(C<sub>i</sub>) = ${fmt(res.fo)}`, 'Perché Lawler: obiettivo max di h non decrescente, con precedenze.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 6 B&B
+function bnbTree(res, snap, curId) {
+  const st = (n) => (snap ? snap.get(n.id) : n.status);
+  const nodes = res.nodes.filter((n) => !snap || snap.has(n.id));
+  return tree(nodes.map((n) => {
+    const s = st(n);
+    const cls = { expanded: '', open: 'open', pruned: 'pruned', bound: 'bound', sol: 'sol', opt: 'opt' }[s] + (n.id === curId ? ' cur' : '');
+    const l1 = '<' + n.prefix.map((j) => j.id).join(',') + '>';
+    const l2 = s === 'pruned' ? '✂ potato' : 'LB ' + fmt(n.LB) + (s === 'sol' || s === 'opt' ? ' ✓' : '');
+    return { id: n.id, parentId: n.parent ? n.parent.id : null, l1: n.prefix.length ? l1 : '< >', l2, cls };
+  })) + LEG_TREE;
+}
+function bnbGantt(ev, T) {
+  const segs = ev.fixed.map((f) => ({ s: f.start, e: f.end, txt: f.job.id, ci: f.job._i }));
+  const rest = ev.pr.segs.map((s) => ({ s: s.start, e: s.end, txt: s.job.id, ci: s.job._i, late: ev.pr.preempted.includes(s.job) }));
+  return gantt([{ label: 'M', segs: segs.concat(rest) }], { T });
+}
+ALGOS.push({
+  slug: 'bnb', num: 6, name: 'Branch & Bound', full: 'EDD con preemption come lower bound', nota: '1 | r<sub>i</sub> | L<sub>max</sub>',
+  goal: 'Minimizzare L<sub>max</sub> quando i job arrivano in tempi diversi r<sub>i</sub>.',
+  idea: 'Con gli arrivi sfasati il problema è difficile. Trucco: fai finta di poter <span class="hl">interrompere</span> i lavori (EDD con preemption). Quel valore non si può battere: è il lower bound (LB). Poi fissi i job dall\'inizio, uno alla volta, aprendo sempre il ramo con LB più basso.',
+  analog: 'Se anche "barando" (con le interruzioni) non scendi sotto 5, senza barare non farai mai meglio di 5.',
+  recipe: ['Radice: EDD con interruzioni (in ogni istante lavora il job disponibile con d minima). Il suo L<sub>max</sub> è il LB.', 'Se non ci sono interruzioni è già la soluzione ottima. Altrimenti ramifica: un figlio per ogni job messo nella prossima posizione.', 'Pota il figlio j se un altro job k finirebbe per intero prima che j arrivi: max(t, r<sub>k</sub>) + p<sub>k</sub> ≤ r<sub>j</sub>.', 'LB del figlio = parte fissata + EDD con interruzioni sul resto. Senza interruzioni → soluzione ammissibile.', 'Apri sempre il nodo con LB minimo. Ti fermi quando una soluzione vale ≤ LB di tutti i nodi aperti.'],
+  traps: ['Se la soluzione di un figlio vale quanto il LB del padre, è già ottima: fermati.', 'Se tutti gli r sono uguali (o EDD li rispetta già) basta EDD classica.', 'Nella parte fissata la macchina può restare ferma in attesa di r: nel resto invece si lavora sempre il job più urgente disponibile.'],
+  cols: [COL.p, COL.r, COL.d],
+  examples: [{ name: '4 job con rilasci', note: 'Trovare la sequenza che minimizza il ritardo massimo.', rows: mkRows(['1', '2', '3', '4'], { p: [4, 2, 6, 5], r: [0, 1, 3, 5], d: [8, 12, 11, 10] }) }],
+  rand() { for (let t = 0; t < 50; t++) { const n = 4; const rows = Array.from({ length: n }, (_, i) => { const p = R(2, 7), r = R(0, 8); return { id: String(i + 1), p, r, d: r + p + R(1, 10) }; }); const jobs = rows.map((x, i) => ({ ...x, _i: i })); const b = bnb(jobs); if (b.events.length >= 2) return { rows }; } return this.examples[0]; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const res = bnb(jobs);
+    const T = Math.max(...jobs.map((j) => j.r)) + jobs.reduce((s, j) => s + j.p, 0);
+    const root = res.nodes[0];
+    const steps = [{ t: 'Leggi i dati', x: '<p>Una macchina, i job arrivano in istanti r<sub>i</sub> diversi, obiettivo L<sub>max</sub>: serve il <b>B&amp;B</b> con EDD a interruzioni come lower bound.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['r', ...jobs.map((j) => j.r)], ['d', ...jobs.map((j) => j.d)]]) }];
+    const rootTxt = `<p>In ogni istante lavoro il job <b>già arrivato</b> con la d più piccola. Se ne arriva uno più urgente, interrompo quello in corso.</p><p>LB della radice = <b>${fmt(root.LB)}</b>.</p>` + (root.feasible ? '<p>Nessuna interruzione: questa è già la soluzione ottima, il B&amp;B non serve.</p>' : `<p>Ci sono interruzioni (bordo rosso: ${root.pr.preempted.map((j) => esc(j.id)).join(', ')}), quindi non è ammissibile: devo ramificare.</p>`);
+    steps.push({ t: 'Radice: EDD con interruzioni', x: rootTxt, v: bnbGantt(root, T) + htbl([['job', ...root.pr.L.map((l) => l.job.id)], ['C', ...root.pr.L.map((l) => l.C)], ['L', ...root.pr.L.map((l) => Lcell(l.L))]]) });
+    res.events.filter((e) => e.type === 'expand').forEach((ev) => {
+      const nm = '<' + ev.node.prefix.map((j) => j.id).join(',') + '>';
+      let x = `<p>Apro il nodo ${esc(ev.node.prefix.length ? nm : '< >')} (LB ${fmt(ev.node.LB)}): provo a mettere in posizione ${ev.node.prefix.length + 1} ognuno dei job rimasti. La macchina è libera a t = ${fmt(ev.node.t)}.</p>`;
+      let kidsH = '<div class="kids">';
+      ev.kids.forEach((k) => {
+        const kn = '<' + k.prefix.map((j) => j.id).join(',') + '>';
+        if (k.status === 'pruned' || (ev.snap && ev.snap.get(k.id) === 'pruned')) {
+          const b = k.check.blocker;
+          kidsH += `<div class="kid cut"><div><b>${esc(kn)}</b> <span class="pill">✂ potato</span></div><p class="small">Il job ${esc(b.id)} partirebbe a ${fmt(Math.max(k.check.t, b.r))} e finirebbe a ${fmt(Math.max(k.check.t, b.r) + b.p)} ≤ r<sub>${esc(k.job.id)}</sub> = ${fmt(k.check.rj)}: ci starebbe tutto prima che ${esc(k.job.id)} arrivi, quindi mettere ${esc(k.job.id)} adesso lascia la macchina ferma per niente.</p></div>`;
+          return;
+        }
+        const s = ev.snap ? ev.snap.get(k.id) : k.status;
+        const tag = k.feasible ? `<span class="pill ok">nessuna interruzione → soluzione = ${fmt(k.LB)}</span>` : s === 'bound' ? `<span class="pill">LB ≥ ottimo corrente: chiuso</span>` : `<span class="pill acc">interruzioni → resta aperto</span>`;
+        kidsH += `<div class="kid${res.best && res.best.node === k ? ' win' : ''}"><div><b>${esc(kn)}</b> LB = ${fmt(k.LB)} ${tag}</div>${bnbGantt(k, T)}</div>`;
+      });
+      kidsH += '</div>';
+      let after = `<p>Ottimo corrente: ${ev.best ? `<b>${fmt(ev.best.val)}</b> con ${esc('<' + ev.best.node.prefix.map((j) => j.id).join(',') + '>')}` : 'nessuno'}. LB minimo dei nodi aperti: ${fmt(ev.minOpen)}.</p>`;
+      after += ev.stop ? `<p><span class="hl">${fmt(ev.best.val)} ≤ ${fmt(ev.minOpen)}: nessun nodo aperto può fare meglio. Mi fermo, è l'ottimo.</span></p>` : '<p>Continuo con il nodo aperto con LB più basso.</p>';
+      steps.push({ t: `Apro ${esc(ev.node.prefix.length ? nm : 'la radice')}`, x: x, v: kidsH + after + bnbTree(res, ev.snap, ev.node.id) });
+    });
+    const seq = res.best.node.seq;
+    const cum = cumulate(seq);
+    steps.push({ t: 'Soluzione ottima', x: `<p>Sequenza ${seqStr(ids(seq))} con L<sub>max</sub> = <b>${fmt(res.best.val)}</b>.</p>`, v: ganttSeq(cum, { showLate: true }) + htbl([['job', ...ids(seq)], ['r', ...seq.map((j) => j.r)], ['inizio', ...cum.map((c) => c.S)], ['C', ...cum.map((c) => c.C)], ['d', ...seq.map((j) => j.d)], ['L', ...cum.map((c) => Lcell(c.C - c.job.d))]]) + bnbTree(res, null, -1) });
+    return { steps, exam: examBox([`Sequenza ottima: ${seqStr(ids(seq))}`, `L<sub>max</sub> = ${fmt(res.best.val)}`, 'Disegna l\'albero con LB su ogni nodo e indica i potati.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 7 SMITH
+ALGOS.push({
+  slug: 'smith', num: 7, name: 'Smith', full: 'Nessun job in ritardo', nota: '1 | T<sub>max</sub> = 0 | ΣC<sub>i</sub>',
+  goal: 'Minimizzare ΣC<sub>i</sub> (e F̄) con il vincolo che nessuno arrivi in ritardo (o al massimo di Δ).',
+  idea: 'È SPT costruito <span class="hl">al contrario, dal fondo</span>, con il vincolo delle scadenze. All\'ultimo posto metti il più lungo tra quelli che, finendo lì, sono ancora in tempo.',
+  analog: 'Come SPT (i lunghi in fondo), ma un job può stare in fondo solo se la sua scadenza lo permette.',
+  recipe: ['Controlla con EDD che sia possibile (T<sub>max</sub> di EDD ≤ Δ).', 'τ = Σp.', 'Candidati: job non piazzati con d ≥ τ (con Δ: d + Δ ≥ τ).', 'Metti in fondo il candidato con p massimo (a parità, quello con d maggiore). τ = τ − p.', 'Quando tutti i rimasti hanno d ≥ τ, il vincolo non morde più: il resto va in ordine SPT.'],
+  traps: ['Un job può chiudere in τ solo se d ≥ τ: finendo lì non è in ritardo.', 'Se a un passo non c\'è nessun candidato, il vincolo è impossibile: EDD te lo dice subito.', 'Con "ritardo massimo Δ" usa d\' = d + Δ e fai Smith con le d\'.'],
+  cols: [COL.p, COL.d],
+  extras: [{ k: 'delta', l: 'Ritardo massimo ammesso Δ (0 = nessun ritardo)', ph: '0' }],
+  examples: [{ name: '6 lavori, ritardo ≤ 2', note: 'Non superare di 2 la due date e minimizzare il tempo medio nel sistema.', rows: mkRows(['1', '2', '3', '4', '5', '6'], { p: [4, 2, 3, 4, 2, 5], d: [13, 13, 5, 14, 1, 18] }), extra: { delta: '2' } }],
+  rand() { const n = R(5, 6); const p = Array.from({ length: n }, () => R(1, 7)); const perm = byIdx(p).sort(() => Math.random() - 0.5); let t = 0; const d = []; perm.forEach((k) => { t += p[k]; d[k] = t + R(0, 6); }); return { rows: p.map((x, i) => ({ id: letters[i], p: x, d: d[i] })), extra: { delta: '0' } }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const dl = num(exVal(data, 'delta') || '0');
+    if (Number.isNaN(dl) || dl < 0) throw new Error('Δ deve essere un numero ≥ 0.');
+    const dp = jobs.map((j) => j.d + dl);
+    const eddSeq = eddOrder(jobs), eddC = cumulate(eddSeq), eddT = Math.max(0, ...eddC.map((c) => c.C - c.job.d));
+    const S = jobs.reduce((s, j) => s + j.p, 0);
+    const rows = [['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['d', ...jobs.map((j) => j.d)]];
+    if (dl > 0) rows.push([`d' = d+${fmt(dl)}`, ...dp.map((v) => ({ v: fmt(v), c: 'pick' }))]);
+    const steps = [{ t: 'Leggi i dati', x: `<p>Obiettivo ΣC (o F̄) con vincolo ${dl > 0 ? `T<sub>max</sub> ≤ ${fmt(dl)}` : 'T<sub>max</sub> = 0'}: si usa <b>Smith</b>.${dl > 0 ? ` Allargo le scadenze: d' = d + ${fmt(dl)}.` : ''}</p>`, v: htbl(rows) }];
+    const okEdd = eddT <= dl;
+    steps.push({ t: 'Controllo con EDD', x: `<p>EDD ${seqStr(ids(eddSeq))} dà T<sub>max</sub> = ${fmt(eddT)} ${okEdd ? '≤' : '&gt;'} ${fmt(dl)} → ${okEdd ? '<span class="pill ok">il vincolo si può rispettare</span>' : '<span class="pill late">impossibile: nessuna sequenza rispetta il vincolo</span>'}</p>` });
+    if (!okEdd) return { steps, exam: examBox([`EDD ha T<sub>max</sub> = ${fmt(eddT)} &gt; ${fmt(dl)}: il problema non ha soluzione.`]) };
+    const sm = smith(jobs, dp);
+    steps.push({ t: 'Parti dal fondo: τ = Σp', x: `<p>τ = ${jobs.map((j) => fmt(j.p)).join(' + ')} = <b>${fmt(S)}</b>.</p>` });
+    const placed = [];
+    let end = S;
+    let shortcut = false;
+    sm.iters.forEach((it, n) => {
+      const pk = jobs[it.pick];
+      let x = `<p>τ = <b>${fmt(it.tau)}</b>. Candidati (${dl > 0 ? "d'" : 'd'} ≥ ${fmt(it.tau)}): ${it.cand.map((k) => `${esc(jobs[k].id)} (p=${fmt(jobs[k].p)})`).join(', ')}.</p><p>Il più lungo è <b>${esc(pk.id)}</b>: va in fondo, in [${fmt(it.tau - pk.p)}, ${fmt(it.tau)}].</p>`;
+      if (it.allFree && !shortcut && n < jobs.length - 1) { shortcut = true; x += '<p class="small muted">Da qui tutti i rimasti hanno scadenza ≥ τ: il vincolo non conta più e il resto viene in ordine SPT.</p>'; }
+      placed.push({ s: end - pk.p, e: end, txt: pk.id, ci: pk._i });
+      end -= pk.p;
+      const segs = placed.slice();
+      if (end > 0) segs.push({ s: 0, e: end, txt: 'da riempire', ghost: true });
+      steps.push({ t: `τ = ${fmt(it.tau)}`, x, v: htbl([['job', ...it.cand.map((k) => esc(jobs[k].id))], [dl > 0 ? "d'" : 'd', ...it.cand.map((k) => fmt(dp[k]))], ['p', ...it.cand.map((k) => ({ v: fmt(jobs[k].p), c: k === it.pick ? 'pick' : '' }))]]) + gantt([{ label: 'M', segs }], { T: S }) });
+    });
+    const seq = sm.seqIdx.map((k) => jobs[k]), cum = cumulate(seq);
+    steps.push({ t: 'Sequenza e flusso medio', x: `<p>Sequenza: ${seqStr(ids(seq))}.</p><p>ΣC = ${cum.map((c) => fmt(c.C)).join(' + ')} = <b>${fmt(sm.sumC)}</b> · F̄ = ΣC/n = <b>${fmt(sm.sumC / jobs.length)}</b> · T<sub>max</sub> = ${fmt(sm.Tmax)} ≤ ${fmt(dl)} ✓</p>`, v: htbl([['job', ...ids(seq)], ['C', ...cum.map((c) => c.C)], ['d', ...seq.map((j) => j.d)], ['T', ...cum.map((c) => Math.max(0, c.C - c.job.d))]]) + ganttSeq(cum) });
+    return { steps, exam: examBox([`Sequenza: ${seqStr(ids(seq))}`, `ΣC = ${fmt(sm.sumC)} · F̄ = ${fmt(sm.sumC / jobs.length)} · T<sub>max</sub> = ${fmt(sm.Tmax)}`, 'Perché Smith: min ΣC con vincolo sul ritardo.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 8 SMITH MODIFICATO
+ALGOS.push({
+  slug: 'smithmod', num: 8, name: 'Smith modificato', full: 'Curva di Pareto flusso – T<sub>max</sub>', nota: '1 | T<sub>max</sub> ≤ Δ | ΣC<sub>i</sub>',
+  goal: 'Trovare tutte le sequenze efficienti tra flusso (ΣF o F̄) e T<sub>max</sub>.',
+  idea: 'Due obiettivi che litigano: SPT abbassa il flusso, EDD abbassa il ritardo. In mezzo: accetti un ritardo massimo Δ, <span class="hl">allarghi le scadenze di Δ e rifai Smith</span>. Ogni Δ ti dà un punto della curva di Pareto.',
+  analog: 'Più tolleri ritardi, più puoi far passare prima i lavori corti.',
+  recipe: ['SPT: flusso minimo, il suo T<sub>max</sub> = Δ<sub>max</sub>. È il primo punto.', 'EDD: T<sub>max</sub> minimo = Δ<sub>min</sub>. Lì ti fermerai.', 'Δ = T<sub>max</sub> dell\'ultimo punto − 1; d\' = d + Δ; Smith con le d\'.', 'Calcola ΣF e T<sub>max</sub> con le d originali: è un nuovo punto.', 'Ripeti finché T<sub>max</sub> = Δ<sub>min</sub>. Scarta i punti dominati.'],
+  traps: ['Non scendere di 1 alla volta: i Δ tra due T<sub>max</sub> danno la stessa sequenza, quindi salta a T<sub>max</sub> trovato − 1.', 'T<sub>max</sub> e ΣF del punto si calcolano con le d ORIGINALI, non con le d\'.', 'Sulla curva migliorare un criterio peggiora l\'altro; con i pesi dei due criteri scegli il punto.'],
+  cols: [COL.p, COL.d],
+  examples: [
+    { name: '5 job A–E', note: 'Minimizzare insieme ΣF e T<sub>max</sub>.', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p: [10, 5, 7, 3, 4], d: [24, 22, 8, 25, 27] }) },
+    { name: 'Esercitazione 4 novembre', note: 'Spese di controllo (flusso) contro danno d\'immagine (ritardo massimo).', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p: [6, 3, 5, 4, 2], d: [20, 10, 8, 6, 6] }) },
+  ],
+  rand() { const n = 5; for (let t = 0; t < 60; t++) { const p = Array.from({ length: n }, () => R(2, 10)); const S = p.reduce((a, b) => a + b, 0); const rows = p.map((x, i) => ({ id: letters[i], p: x, d: R(x, S) })); const r = smithMod(rows.map((q, i) => ({ ...q, _i: i }))); if (r.points.length >= 3) return { rows }; } return this.examples[0]; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const r = smithMod(jobs);
+    const n = jobs.length;
+    const nm = (seqIdx) => seqIdx.map((k) => jobs[k].id);
+    const steps = [{ t: 'Leggi i dati', x: '<p>Due criteri insieme: flusso (ΣF = ΣC, tutti pronti a 0) e T<sub>max</sub>. Si costruisce la <b>curva di Pareto</b> con Smith modificato.</p>', v: htbl([['job', ...ids(jobs)], ['p', ...jobs.map((j) => j.p)], ['d', ...jobs.map((j) => j.d)]]) }];
+    const sptC = cumulate(r.spt.seqIdx.map((k) => jobs[k]));
+    steps.push({ t: 'Estremo 1: SPT (flusso minimo)', x: `<p>SPT ${seqStr(nm(r.spt.seqIdx))}: ΣF = <b>${fmt(r.spt.sumC)}</b>, T<sub>max</sub> = <b>${fmt(r.spt.Tmax)}</b> = Δ<sub>max</sub>. Primo punto (${fmt(r.spt.sumC)}, ${fmt(r.spt.Tmax)}).</p>`, v: htbl([['job', ...nm(r.spt.seqIdx)], ['C', ...sptC.map((c) => c.C)], ['L', ...sptC.map((c) => Lcell(c.C - c.job.d))]]) });
+    const eddC = cumulate(r.edd.seqIdx.map((k) => jobs[k]));
+    steps.push({ t: 'Estremo 2: EDD (ritardo minimo)', x: `<p>EDD ${seqStr(nm(r.edd.seqIdx))}: T<sub>max</sub> = <b>${fmt(r.edd.Tmax)}</b> = Δ<sub>min</sub>, ΣF = ${fmt(r.edd.sumC)}. Sotto Δ<sub>min</sub> è impossibile: lì mi fermerò.</p>`, v: htbl([['job', ...nm(r.edd.seqIdx)], ['C', ...eddC.map((c) => c.C)], ['L', ...eddC.map((c) => Lcell(c.C - c.job.d))]]) });
+    let prevT = r.spt.Tmax;
+    r.runs.forEach((run) => {
+      let x = `<p>Ultimo T<sub>max</sub> = ${fmt(prevT)} → Δ = ${fmt(prevT)} − 1 = <b>${fmt(run.delta)}</b>. Scadenze allargate d' = d + ${fmt(run.delta)}, poi Smith:</p>`;
+      if (run.sm.fail) { x += `<p class="err">A τ = ${fmt(run.sm.tau)} nessun job ha d' ≥ τ: con Δ = ${fmt(run.delta)} non c'è sequenza. Mi fermo.</p>`; steps.push({ t: `Δ = ${fmt(run.delta)}`, x }); return; }
+      x += '<ul class="small">' + run.sm.iters.map((it) => `<li>τ = ${fmt(it.tau)}: candidati ${it.cand.map((k) => esc(jobs[k].id)).join(', ')} → in fondo <b>${esc(jobs[it.pick].id)}</b> (p = ${fmt(jobs[it.pick].p)})</li>`).join('') + '</ul>';
+      const seq = run.sm.seqIdx.map((k) => jobs[k]), cum = cumulate(seq);
+      x += `<p>Sequenza ${seqStr(ids(seq))}: ΣF = <b>${fmt(run.sm.sumC)}</b>, T<sub>max</sub> (con le d originali) = <b>${fmt(run.sm.Tmax)}</b> → punto (${fmt(run.sm.sumC)}, ${fmt(run.sm.Tmax)}).${run.sm.Tmax <= r.dmin ? ' Ho raggiunto Δ<sub>min</sub>: fine.' : ''}</p>`;
+      prevT = run.sm.Tmax;
+      steps.push({ t: `Δ = ${fmt(run.delta)}`, x, v: htbl([['job', ...ids(jobs)], ["d'", ...run.dp.map(fmt)]]) + htbl([['seq', ...ids(seq)], ['C', ...cum.map((c) => c.C)], ['L', ...cum.map((c) => Lcell(c.C - c.job.d))]]) });
+    });
+    const pts = r.points.map((p) => ({ x: p.sumC, y: p.Tmax, lbl: p.src, dom: p.dominated }));
+    const ep = r.eddPoint;
+    const same = r.points.some((p) => p.sumC === ep.sumC && p.Tmax === ep.Tmax);
+    if (!same) pts.push({ x: ep.sumC, y: ep.Tmax, lbl: 'EDD', dom: ep.dominated });
+    const eff = r.points.filter((p) => !p.dominated);
+    steps.push({ t: 'La curva di Pareto', x: `<p>Punti efficienti (ΣF, T<sub>max</sub>): ${eff.map((p) => `<b>(${fmt(p.sumC)}, ${fmt(p.Tmax)})</b>`).join(' · ')}.</p>${!same ? `<p class="small muted">EDD (${fmt(ep.sumC)}, ${fmt(ep.Tmax)}) ${ep.dominated ? 'è dominato: stesso ritardo ma più flusso (pallino vuoto).' : 'è efficiente.'}</p>` : ''}<p class="small muted">Se ti chiedono F̄, dividi ΣF per n = ${n}.</p>`, v: paretoChart(pts) + tbl(['punto', 'sequenza', 'ΣF', 'F̄', 'T<sub>max</sub>'], r.points.map((p) => [p.src, { h: seqStr(nm(p.seqIdx)) }, p.sumC, p.sumC / n, { v: fmt(p.Tmax), c: p.dominated ? 'dim' : '' }])) });
+    return { steps, exam: examBox([`Punti efficienti (ΣF, T<sub>max</sub>): ${eff.map((p) => `(${fmt(p.sumC)}, ${fmt(p.Tmax)})`).join(', ')}`, 'Disegna la curva (ΣF in orizzontale, T<sub>max</sub> in verticale) e indica le sequenze.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 9 GILMORE-GOMORY
+ALGOS.push({
+  slug: 'gg', num: 9, name: 'Gilmore e Gomory', full: 'Set-up dipendenti dalla sequenza', nota: '1 | s<sub>ij</sub> | C<sub>max</sub>',
+  goal: 'Minimizzare il set-up totale (quindi C<sub>max</sub>), quando passare da j a k costa |a<sub>k</sub> − b<sub>j</sub>|.',
+  idea: 'Ogni job lascia la macchina in uno stato b e richiede all\'inizio uno stato a. Il set-up è il "salto" tra i due. Prima <span class="hl">abbini piccoli con piccoli</span> (b ordinati con a ordinati): costo minimo, ma possono uscire giri separati. Poi li unisci con gli scambi più economici.',
+  analog: 'Come accoppiare scarpe per numero: l\'abbinamento in ordine è il più economico, poi si "cuciono" i gruppi in un unico giro.',
+  recipe: ['Ordina i job per b crescente e rinumerali 0, 1, 2…', 'Ordina le a: φ(k) = job con la k-esima a più piccola. Abbina k → φ(k). LB = Σ|a<sub>φ(k)</sub> − b<sub>k</sub>|.', 'Disegna k → φ(k) e conta i cicli.', 'Costo scambio (k, k+1) = 2·max(0, min(b<sub>k+1</sub>, a<sub>φ(k+1)</sub>) − max(b<sub>k</sub>, a<sub>φ(k)</sub>)). Scegli i più economici tra cicli diversi finché resta un solo ciclo.', 'Tipo 1 se b<sub>k</sub> ≤ a<sub>φ(k)</sub>, tipo 2 altrimenti. Applica i tipo 1 dal k più grande, poi i tipo 2 dal k più piccolo.'],
+  traps: ['Uno scambio dentro lo stesso ciclo lo spezzerebbe: non serve.', 'Lo scambio (k, k+1) scambia i successori: φ(k) ↔ φ(k+1).', 'Tipo 1 = b<sub>k</sub> ≤ a<sub>φ(k)</sub>, tipo 2 = b<sub>k</sub> &gt; a<sub>φ(k)</sub>. L\'ordine di applicazione conta quando due scambi scelti sono vicini, es. (1,2) e (2,3).', 'Controllo: costo finale = LB + somma dei costi degli scambi scelti.'],
+  cols: [{ k: 'b', l: 'b<sub>i</sub> (stato finale)', name: 'b', neg: true }, { k: 'a', l: 'a<sub>i</sub> (stato iniziale)', name: 'a', neg: true }],
+  help: '<p class="small muted">Il primo job (0) rappresenta la macchina: b<sub>0</sub> = stato di partenza, a<sub>0</sub> = stato in cui deve tornare.</p>',
+  examples: [{ name: 'Esercizio 3.14, 6 job + job 0', note: 'Minimizzare il tempo totale di set-up.', rows: mkRows(['0', '1', '2', '3', '4', '5', '6'], { b: [1, 15, 6, 24, 33, 29, 21], a: [3, 28, 46, 41, 14, 35, 18] }) }],
+  rand() { for (let t = 0; t < 80; t++) { const n = 6; const rows = Array.from({ length: n }, (_, i) => ({ id: String(i), b: R(0, 40), a: R(0, 40) })); const g = gilmoreGomory(rows); if (g.cycles.length >= 3) return { rows }; } return this.examples[0]; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const g = gilmoreGomory(jobs);
+    const n = jobs.length;
+    const on = (k) => jobs[g.ord[k]].id; // nome originale del rinominato k
+    const nn = (k) => String(k);
+    const cycOf = g.cyc;
+    const steps = [{ t: 'Leggi i dati', x: '<p>Set-up dipendente dalla sequenza con s<sub>jk</sub> = |a<sub>k</sub> − b<sub>j</sub>|: Σp è fisso, conta solo il set-up. Si usa <b>Gilmore e Gomory</b>.</p>', v: htbl([['job', ...ids(jobs)], ['b', ...jobs.map((j) => j.b)], ['a', ...jobs.map((j) => j.a)]]) }];
+    steps.push({ t: 'Ordina per b e rinomina', x: '<p>Metto i job in ordine di b crescente e li rinumero da 0. La riga "orig." ricorda il nome di partenza.</p>', v: htbl([['nuovo', ...byIdx(g.ord).map(nn)], ['orig.', ...g.ord.map((i) => jobs[i].id)], ['b', ...g.B.map((v) => ({ v: fmt(v), c: 'pick' }))], ['a', ...g.A]]) });
+    steps.push({ t: 'Abbina b e a in ordine: φ', x: `<p>Ordino anche le a. Il k-esimo b più piccolo va con la k-esima a più piccola: dopo il job k viene φ(k).</p><p>LB = Σ|a<sub>φ(k)</sub> − b<sub>k</sub>| = ${g.phi.map((pk, k) => fmt(Math.abs(g.A[pk] - g.B[k]))).join(' + ')} = <b>${fmt(g.LB)}</b></p>`, v: htbl([['k', ...byIdx(g.B).map(nn)], ['b<sub>k</sub>', ...g.B], ['a<sub>φ(k)</sub>', ...g.phi.map((pk) => g.A[pk])], ['φ(k)', ...g.phi.map((pk) => ({ v: nn(pk), c: 'pick' }))], ['|a − b|', ...g.phi.map((pk, k) => Math.abs(g.A[pk] - g.B[k]))]]) });
+    steps.push({ t: 'Conta i cicli', x: `<p>Seguo le frecce k → φ(k). Escono <b>${g.cycles.length}</b> ${g.cycles.length === 1 ? 'ciclo: è già un unico giro, la soluzione è il LB.' : `cicli separati (${g.cycles.map((c) => '{' + c.join(',') + '}').join(' ')}): la macchina non può fare giri separati, devo unirli con ${g.cycles.length - 1} scambi.`}</p>`, v: cycleGraph(n, g.phi, cycOf, byIdx(g.B).map(nn)) });
+    if (g.cycles.length > 1) {
+      steps.push({ t: 'Costo degli scambi tra vicini', x: '<p>Per ogni coppia (k, k+1): 2·max(0, min(b<sub>k+1</sub>, a<sub>φ(k+1)</sub>) − max(b<sub>k</sub>, a<sub>φ(k)</sub>)). Se k e k+1 sono nello stesso ciclo lo scambio è inutile.</p>', v: tbl(['scambio', 'min(…)', 'max(…)', 'costo', ''], g.swaps.map((s) => { const mn = Math.min(g.B[s.k + 1], g.A[g.phi[s.k + 1]]), mx = Math.max(g.B[s.k], g.A[g.phi[s.k]]); return [`(${s.k},${s.k + 1})`, `min(${fmt(g.B[s.k + 1])}, ${fmt(g.A[g.phi[s.k + 1]])}) = ${fmt(mn)}`, `max(${fmt(g.B[s.k])}, ${fmt(g.A[g.phi[s.k]])}) = ${fmt(mx)}`, { v: fmt(s.cost), c: s.same ? 'dim' : 'pick' }, s.same ? 'stesso ciclo: inutile' : `unisce cicli`]; })) });
+      steps.push({ t: 'Scegli gli scambi più economici', x: `<p>Prendo gli scambi dal più economico, solo se uniscono cicli ancora separati, finché resta un solo giro.</p><ul class="small">${g.krLog.map((l) => `<li>(${l.s.k},${l.s.k + 1}) costo ${fmt(l.s.cost)}: ${l.ok ? '<b>preso</b>' : 'scartato (' + l.why + ')'}</li>`).join('')}</ul><p>Costo totale = LB + scambi = ${fmt(g.LB)} + ${g.chosen.map((c) => fmt(c.cost)).join(' + ')} = <b>${fmt(g.LB + g.extra)}</b></p>` });
+      steps.push({ t: 'Classifica e applica gli scambi', x: `<p>Tipo 1 se b<sub>k</sub> ≤ a<sub>φ(k)</sub>, tipo 2 se b<sub>k</sub> &gt; a<sub>φ(k)</sub>. Applico prima i tipo 1 dal k più grande al più piccolo, poi i tipo 2 dal più piccolo al più grande. Ogni scambio (k, k+1) scambia φ(k) e φ(k+1).</p>`, v: tbl(['scambio', 'b<sub>k</sub>', 'a<sub>φ(k)</sub>', 'tipo'], g.chosen.map((s) => [`(${s.k},${s.k + 1})`, g.B[s.k], g.A[g.phi[s.k]], { v: s.type, c: 'pick' }])) + tbl(['dopo lo scambio', ...byIdx(g.B).map((k) => 'φ(' + k + ')')], [['iniziale', ...g.phi.map(nn)]].concat(g.applyLog.map((l) => [`(${l.s.k},${l.s.k + 1})`, ...l.phiNow.map(nn)]))) });
+    }
+    steps.push({ t: 'Il giro finale', x: `<p>Partendo dal job ${esc(on(g.tour[0]))}: ${seqStr(g.tour.concat([g.tour[0]]).map(nn))} (numeri nuovi).</p><p>Con i nomi originali: ${seqStr(g.tour.concat([g.tour[0]]).map(on))}.</p><p>Set-up totale = ${g.legs.map((l) => fmt(l.cost)).join(' + ')} = <b>${fmt(g.total)}</b> ${g.cycles.length > 1 ? `= LB + scambi ✓` : ''}</p>`, v: cycleGraph(n, g.finalPhi, g.finalPhi.map(() => 0), byIdx(g.B).map(nn)) + tbl(['da → a', 'b<sub>da</sub>', 'a<sub>a</sub>', 'set-up'], g.legs.map((l) => [`${l.from} → ${l.to}`, g.B[l.from], g.A[l.to], l.cost])) });
+    return { steps, exam: examBox([`Sequenza: ${seqStr(g.tour.concat([g.tour[0]]).map(on))} (nomi originali)`, `Set-up minimo = ${fmt(g.total)} (LB ${fmt(g.LB)} + scambi ${fmt(g.extra)})`, 'Disegna i cicli prima e dopo gli scambi.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 10 JOHNSON
+ALGOS.push({
+  slug: 'johnson', num: 10, name: 'Johnson', full: 'Flow shop a 2 macchine', nota: 'F2 || C<sub>max</sub>',
+  goal: 'Minimizzare C<sub>max</sub> su due macchine in serie (prima M1, poi M2) con buffer.',
+  idea: '<span class="hl">Chi è veloce su M1 va in testa</span>, così M2 parte subito; <span class="hl">chi è veloce su M2 va in coda</span>, così la linea chiude presto.',
+  analog: 'In cucina: per primo prepari il piatto che si taglia in un attimo, così chi cucina comincia subito.',
+  recipe: ['Trova il tempo più piccolo tra tutti i p<sub>1</sub> e p<sub>2</sub> dei job rimasti.', 'Se è su M1, il job va nel primo posto libero in testa; se è su M2, nell\'ultimo posto libero in coda.', 'Cancella il job e ripeti.', 'Disegna il Gantt: su M2 il job parte a max(fine su M1, fine del precedente su M2).'],
+  traps: ['Regola equivalente: job con p<sub>1</sub> ≤ p<sub>2</sub> in testa per p<sub>1</sub> crescente, gli altri in coda per p<sub>2</sub> decrescente.', 'A parità tra M1 e M2 puoi scegliere: C<sub>max</sub> non cambia.', 'Se il testo aggiunge un tempo fisso dopo (es. 1 giorno di consegna), sommalo a C<sub>max</sub>.'],
+  cols: [{ k: 'p1', l: 'p su M1', name: 'il tempo su M1', pos: true }, { k: 'p2', l: 'p su M2', name: 'il tempo su M2', pos: true }],
+  examples: [{ name: 'Esercizio 3.16, 5 componenti', note: 'M1 = andare a prendere, M2 = collaudare; poi 1 giorno per montare e consegnare.', rows: mkRows(['A', 'B', 'C', 'D', 'E'], { p1: [2, 3, 4, 5, 7], p2: [6, 6, 5, 3, 5] }) }],
+  rand() { const n = R(5, 6); return { rows: Array.from({ length: n }, (_, i) => ({ id: letters[i], p1: R(1, 9), p2: R(1, 9) })) }; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols);
+    const r = johnson(jobs);
+    const n = jobs.length;
+    const steps = [{ t: 'Leggi i dati', x: '<p>Due macchine in serie, tutti i job passano prima su M1 e poi su M2, c\'è un buffer: obiettivo C<sub>max</sub> → <b>Johnson</b>.</p>', v: htbl([['job', ...ids(jobs)], ['M1', ...jobs.map((j) => j.p1)], ['M2', ...jobs.map((j) => j.p2)]]) }];
+    r.iters.forEach((it) => {
+      const slots = Array(n).fill('');
+      it.left.forEach((j, i) => (slots[i] = j.id));
+      it.right.forEach((j, i) => (slots[n - it.right.length + i] = j.id));
+      const x = `<p>Il tempo più piccolo tra i rimasti è <b>${fmt(it.val)}</b>, del job ${esc(it.job.id)} su ${it.where}. ${it.where === 'M1' ? 'È su M1 → primo posto libero in testa.' : 'È su M2 → ultimo posto libero in coda.'}${it.ties ? ' <span class="small muted">(c\'è una parità: scegliere l\'altro dà lo stesso C<sub>max</sub>)</span>' : ''}</p>`;
+      const v = tbl(['job', 'M1', 'M2'], it.rem.map((j) => [j.id, { v: fmt(j.p1), c: j === it.job && it.where === 'M1' ? 'pick' : '' }, { v: fmt(j.p2), c: j === it.job && it.where === 'M2' ? 'pick' : '' }])) + tbl(byIdx(slots).map((i) => 'pos ' + (i + 1)), [slots.map((s) => ({ v: s || '·', c: s === it.job.id ? 'pick' : s ? '' : 'dim' }))]);
+      steps.push({ t: `Piazzo ${esc(it.job.id)}`, x, v });
+    });
+    const G = r.gantt;
+    const rows = [{ label: 'M1', segs: G.m1.map((s) => ({ s: s.start, e: s.end, txt: s.job.id, ci: s.job._i })) }, { label: 'M2', segs: G.m2.map((s) => ({ s: s.start, e: s.end, txt: s.job.id, ci: s.job._i })) }];
+    const idle = G.m2.filter((s) => s.idle > 0).map((s) => `${esc(s.job.id)} (M2 ferma ${fmt(s.idle)})`);
+    steps.push({ t: 'Gantt e C<sub>max</sub>', x: `<p>Sequenza ${seqStr(ids(r.seq))}. Su M2 ogni job parte quando è finito su M1 <i>e</i> M2 è libera.</p><p>C<sub>max</sub> = <b>${fmt(G.Cmax)}</b>${idle.length ? `. Attese di M2: ${idle.join(', ')}.` : '.'}</p>`, v: gantt(rows) + htbl([['job', ...ids(r.seq)], ['fine M1', ...G.m1.map((s) => s.end)], ['inizio M2', ...G.m2.map((s) => s.start)], ['fine M2', ...G.m2.map((s) => s.end)]]) });
+    return { steps, exam: examBox([`Sequenza: ${seqStr(ids(r.seq))}`, `C<sub>max</sub> = ${fmt(G.Cmax)} (aggiungi eventuali tempi fissi finali)`, 'Disegna il Gantt su M1 e M2.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 11 PIANO DEI TEMPI + A*
+function parseOps(txt, who) {
+  const s = String(txt || '').trim();
+  if (!s) throw new Error(`Scrivi le operazioni del job ${who}, per esempio: 4b, 4c, 3b`);
+  return s.split(/[,;]+|\s+(?=\d)/).map((t) => t.trim()).filter(Boolean).map((t) => {
+    const m = /^(\d+(?:[.,]\d+)?)\s*([^\s\d][^\s]*)?$/.exec(t);
+    if (!m) throw new Error(`Job ${who}: "${t}" non capito. Scrivi durata + utensile, es. 4b.`);
+    return { p: num(m[1]), tool: m[2] || '' };
+  });
+}
+function planeNodes(res, uptoStep) {
+  const st = res.steps[uptoStep];
+  const ids0 = new Set(st ? [...st.snap.keys()] : res.nodes.map((n) => n.id));
+  return res.nodes.filter((n) => ids0.has(n.id));
+}
+function aStarTree(res, snap, curId) {
+  const nodes = res.nodes.filter((n) => !snap || snap.has(n.id));
+  return tree(nodes.map((n) => {
+    const s = snap ? snap.get(n.id) : n.status;
+    const isBest = res.best && res.chain.includes(n) && !snap;
+    const cls = ({ expanded: '', open: 'open', bound: 'bound', dom: 'dom', sol: 'sol' }[s] || '') + (n.id === curId ? ' cur' : '') + (isBest ? ' opt' : '');
+    const l1 = n.isSol ? n.id + '·fine' : n.parent ? n.id + '·' + n.label : '0·O';
+    const l2 = n.isSol ? 'C = ' + fmt(n.g) : n.parent ? `${fmt(n.g)}+${fmt(n.h)}=${fmt(n.f)}` : 'f = ' + fmt(n.f);
+    return { id: n.id, parentId: n.parent ? n.parent.id : null, l1, l2, cls };
+  })) + LEG_TREE;
+}
+ALGOS.push({
+  slug: 'piano', num: 11, name: 'Piano dei tempi + A*', full: 'Job shop con utensili condivisi', nota: 'J2 | utensili | C<sub>max</sub>',
+  goal: 'Decidere chi passa prima sui conflitti di utensile, per finire entrambi i job il prima possibile.',
+  idea: 'Disegna il job A in verticale e il job B in orizzontale. <span class="hl">Andare a 45° vuol dire lavorare insieme</span>; in verticale lavora solo A (B aspetta), in orizzontale solo B. Dove A e B vogliono lo stesso utensile c\'è un ostacolo: lo aggiri da sopra (A passa prima) o da destra (B passa prima). Scegli con A*: f = strada fatta + stima del resto.',
+  analog: 'Come una battaglia navale: navighi in diagonale e giri attorno alle navi (gli utensili contesi).',
+  recipe: ['Assi: A in verticale, B in orizzontale, con i tempi cumulati. Disegna un rettangolo dove A<sub>i</sub> e B<sub>j</sub> usano lo stesso utensile.', 'Dall\'origine vai a 45° finché non tocchi un rettangolo.', 'Due figli: angolo in alto a sinistra (A<sub>i</sub> prima di B<sub>j</sub>) e angolo in basso a destra (B<sub>j</sub> prima di A<sub>i</sub>).', 'g = g del padre + max(ΔA, ΔB) per arrivare all\'angolo; h = max(residuo A, residuo B); f = g + h.', 'Apri sempre il nodo con f minimo e riparti a 45°. Quando arrivi alla fine con costo C ≤ f di tutti i nodi aperti, è l\'ottimo.'],
+  traps: ['Un rettangolo che la diagonale non tocca è un conflitto solo potenziale: niente ramificazione.', 'Il percorso può scorrere lungo i bordi dei rettangoli: è un\'operazione che finisce proprio quando l\'altra inizia.', 'Utensile duplicato = i suoi rettangoli spariscono (anche più avanti). Conviene se risparmio di tempo × valore orario &gt; costo.'],
+  cols: null,
+  extras: [{ k: 'A', l: 'Job A: durata + utensile per ogni operazione', ph: '4b, 4c, 3b, 1e, 3d', wide: true }, { k: 'B', l: 'Job B: durata + utensile per ogni operazione', ph: '3a, 4b, 1c, 2b, 5e, 2a', wide: true }, { k: 'val', l: '€ risparmiati per ogni unità di tempo (facoltativo)', ph: '1000' }],
+  examples: [{ name: 'Esercitazione, problema 3', note: 'Due job e un magazzino utensili. Poi: quanto pagare per duplicare un utensile, se ogni unità di tempo vale 1000 €?', rows: [], extra: { A: '4b, 4c, 3b, 1e, 3d', B: '3a, 4b, 1c, 2b, 5e, 2a', val: '1000' } }],
+  rand() { const tl = 'abcde'; const mk = (n) => Array.from({ length: n }, () => R(1, 5) + tl[R(0, 4)]).join(', '); for (let t = 0; t < 60; t++) { const A = mk(R(4, 5)), B = mk(R(4, 6)); const r = piano(parseOps(A, 'A'), parseOps(B, 'B'), []); if (r.steps.length >= 3) return { rows: [], extra: { A, B, val: '1000' } }; } return this.examples[0]; },
+  solve(data) {
+    const opsA = parseOps(exVal(data, 'A'), 'A'), opsB = parseOps(exVal(data, 'B'), 'B');
+    const res = piano(opsA, opsB, []);
+    const P = res.P;
+    const val = num(exVal(data, 'val'));
+    const steps = [{ t: 'Disegna il piano dei tempi', x: `<p>A in verticale (fino a ${fmt(P.TA)}), B in orizzontale (fino a ${fmt(P.TB)}). I rettangoli tratteggiati sono i conflitti: lì A e B vorrebbero lo stesso utensile nello stesso momento.</p><p>Se non ci fossero conflitti finirei a max(${fmt(P.TA)}, ${fmt(P.TB)}) = ${fmt(Math.max(P.TA, P.TB))}: è il valore f della radice.</p>`, v: tbl(['op', ...opsA.map((_, i) => 'A' + (i + 1))], [['p', ...opsA.map((o) => o.p)], ['utensile', ...opsA.map((o) => o.tool)]]) + tbl(['op', ...opsB.map((_, i) => 'B' + (i + 1))], [['p', ...opsB.map((o) => o.p)], ['utensile', ...opsB.map((o) => o.tool)]]) + plane(P, {}) }];
+    const pathTo = (n) => { const ch = []; for (let q = n; q; q = q.parent) ch.unshift(q); let pts = [[0, 0]]; ch.slice(1).forEach((q) => q.path.slice(1).forEach((p) => pts.push(p))); return pts; };
+    const pos = (n) => `(B = ${fmt(n.x)}, A = ${fmt(n.y)})`;
+    res.steps.forEach((st) => {
+      const nd = st.node;
+      let x = `<p>Apro il nodo <b>${nd.id}</b> ${nd.parent ? '(' + esc(nd.label) + ')' : '(origine)'} in ${pos(nd)}, con g = ${fmt(nd.g)}. Vado a 45°.</p>`;
+      const tries = [];
+      if (!st.hit) {
+        const sol = st.kids[0];
+        x += `<p>Nessun ostacolo fino alla fine: C = g + max(residuo A, residuo B) = ${fmt(nd.g)} + max(${fmt(P.TA - nd.y)}, ${fmt(P.TB - nd.x)}) = <b>${fmt(sol.g)}</b>.</p>`;
+        tries.push(sol.path);
+      } else {
+        const r = st.hit.r;
+        x += `<p>Tocco il rettangolo dell'utensile <b>${esc(r.tool)}</b> (A${r.ai + 1} con B${r.bj + 1}). Scelte:</p><ul>`;
+        st.kids.forEach((k) => {
+          const dA = k.y - nd.y, dB = k.x - nd.x;
+          x += `<li><b>${k.id}: ${k.first === 'A' ? `A${r.ai + 1} prima di B${r.bj + 1}` : `B${r.bj + 1} prima di A${r.ai + 1}`}</b> → angolo ${k.first === 'A' ? 'in alto a sinistra' : 'in basso a destra'} ${pos(k)}. g = ${fmt(nd.g)} + max(${fmt(dA)}, ${fmt(dB)}) = ${fmt(k.g)}; h = max(${fmt(P.TA - k.y)}, ${fmt(P.TB - k.x)}) = ${fmt(k.h)}; <b>f = ${fmt(k.f)}</b>${st.snap.get(k.id) === 'dom' ? ' <span class="pill">già raggiunto con g minore: dominato</span>' : ''}</li>`;
+          tries.push(k.path);
+        });
+        x += '</ul>';
+        if (st.kids.length === 1) x += '<p class="small muted">Un solo figlio: l\'altra scelta richiederebbe di tornare indietro nel tempo (l\'operazione è già iniziata).</p>';
+      }
+      x += `<p>${st.best ? `Ottimo corrente: <b>${fmt(st.best.cost)}</b>. ` : ''}f minimo tra i nodi aperti: ${fmt(st.minOpen)}.</p>`;
+      if (st.stop) x += `<p><span class="hl">${fmt(st.best.cost)} ≤ ${fmt(st.minOpen)}: nessun nodo aperto può fare meglio, è l'ottimo.</span></p>`;
+      const pts = [{ x: nd.x, y: nd.y, lbl: String(nd.id), cur: true }].concat(st.kids.map((k) => ({ x: k.x, y: k.y, lbl: k.isSol ? 'F' : String(k.id) })));
+      steps.push({ t: `Apro il nodo ${nd.id}`, x, v: plane(P, { path: pathTo(nd), tries, points: pts }) + aStarTree(res, st.snap, nd.id) });
+    });
+    const g = res.gantt;
+    const rows = [{ label: 'A', segs: g.A.map((o, i) => ({ s: o.start, e: o.end, txt: o.name, ci: i })) }, { label: 'B', segs: g.B.map((o, i) => ({ s: o.start, e: o.end, txt: o.name, ci: i + 3 })) }];
+    steps.push({ t: 'Percorso ottimo e Gantt', x: `<p>Priorità: ${res.prio.length ? res.prio.map((p) => `<b>${esc(p)}</b>`).join(', ') : 'nessun conflitto toccato'} (X/Y = X passa prima di Y). C<sub>max</sub> = <b>${fmt(res.best.cost)}</b>.</p>`, v: plane(P, { path: res.pts }) + gantt(rows) + aStarTree(res, null, -1) });
+    // duplicazioni
+    const tools = [...new Set(P.rects.map((r) => r.tool))];
+    if (tools.length) {
+      const dups = tools.map((t) => { const rr = piano(opsA, opsB, [t]); return { t, c: rr.best.cost, s: res.best.cost - rr.best.cost }; });
+      const pairs = [];
+      for (let i = 0; i < tools.length; i++) for (let k = i + 1; k < tools.length; k++) { const rr = piano(opsA, opsB, [tools[i], tools[k]]); pairs.push({ t: tools[i] + ' + ' + tools[k], c: rr.best.cost, s: res.best.cost - rr.best.cost }); }
+      const all = dups.concat(pairs);
+      const head = ['duplico', 'nuovo C<sub>max</sub>', 'risparmio'].concat(Number.isFinite(val) ? ['pago al massimo'] : []);
+      steps.push({ t: 'E se duplico un utensile?', x: `<p>Duplicare un utensile toglie tutti i suoi rettangoli. Rifaccio la ricerca senza di loro e confronto il tempo.${Number.isFinite(val) ? ` Ogni unità di tempo vale ${fmt(val)} €: conviene pagare la duplicazione al massimo risparmio × ${fmt(val)} €.` : ''}</p>`, v: tbl(head, all.map((d) => [d.t, d.c, { v: fmt(d.s), c: d.s > 0 ? 'pick' : 'dim' }].concat(Number.isFinite(val) ? [d.s > 0 ? fmt(d.s * val) + ' €' : 'non conviene'] : []))) });
+    }
+    return { steps, exam: examBox([`Priorità: ${res.prio.join(', ') || '—'}`, `C<sub>max</sub> = ${fmt(res.best.cost)}`, 'Disegna il piano con il percorso, l\'albero con g + h = f e il Gantt.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 12 SHIFTING BOTTLENECK
+function parseRoute(txt, who) {
+  const s = String(txt || '').trim();
+  if (!s) throw new Error(`Job ${who}: scrivi il percorso, es. M1 9, M2 8`);
+  return s.split(/[,;]+/).map((t) => t.trim()).filter(Boolean).map((t) => {
+    const m = /^(M?\s*\d+|[A-Za-z]\w*)\s*[:=\s]\s*(\d+(?:[.,]\d+)?)$/.exec(t);
+    if (!m) throw new Error(`Job ${who}: "${t}" non capito. Scrivi macchina e durata, es. M2 8.`);
+    let mm = m[1].replace(/\s+/g, '');
+    if (/^\d+$/.test(mm)) mm = 'M' + mm;
+    return { m: mm, p: num(m[2]) };
+  });
+}
+ALGOS.push({
+  slug: 'sb', num: 12, name: 'Shifting bottleneck', full: 'Job shop a m macchine', nota: 'Jm || C<sub>max</sub>',
+  goal: 'Minimizzare C<sub>max</sub> in un job shop con più macchine.',
+  idea: 'Troppe combinazioni per provarle tutte. Allora sistemi <span class="hl">una macchina alla volta, partendo dal collo di bottiglia</span>: quella che, da sola, farebbe ritardare di più il lavoro (L<sub>max</sub> più alto).',
+  analog: 'In un ingorgo sistemi prima l\'incrocio più intasato, poi ricontrolli il traffico.',
+  recipe: ['Grafo: una riga per job, un nodo per operazione (macchina·durata). C<sub>max</sub> iniziale = il job più lungo.', 'Per ogni operazione: r = percorso più lungo per arrivarci (archi entranti); d = C<sub>max</sub> − percorso più lungo dopo di lei (archi uscenti).', 'Per ogni macchina non ancora fissata risolvi 1 | r<sub>j</sub> | L<sub>max</sub> (B&amp;B della scheda 6).', 'Collo di bottiglia = macchina con L<sub>max</sub> più grande: fissa la sua sequenza (archi nel grafo). C<sub>max</sub> = C<sub>max</sub> + L<sub>max</sub>.', 'Ripeti. Se tutti gli L<sub>max</sub> sono ≤ 0, usa le sequenze trovate e chiudi con il Gantt.'],
+  traps: ['r e d si calcolano solo per le operazioni di cui conosci tutti i predecessori (per r) o tutti i successori (per d).', 'L<sub>max</sub> di ogni macchina è un lower bound: le macchine sono trattate come indipendenti, quindi il Gantt finale va sempre fatto per verifica.', 'A parità di L<sub>max</sub> il collo di bottiglia si sceglie a caso (qui: la macchina con numero più basso).'],
+  cols: [{ k: 'route', l: 'percorso: macchina durata, …', name: 'il percorso', type: 'txt', wide: true }],
+  examples: [{ name: 'Esercizio 3.18, 3 job × 4 macchine', note: '4 macchine, 3 job, ognuno con il suo ordine di macchine.', rows: [{ id: '1', route: 'M1 9, M2 8, M3 4, M4 4' }, { id: '2', route: 'M2 8, M1 5, M4 3, M3 6' }, { id: '3', route: 'M3 10, M1 4, M2 9, M4 2' }] }],
+  rand() { const ms = ['M1', 'M2', 'M3']; for (let t = 0; t < 40; t++) { const rows = [1, 2, 3].map((i) => ({ id: String(i), route: ms.slice().sort(() => Math.random() - 0.5).map((m) => m + ' ' + R(2, 10)).join(', ') })); const sb = shiftingBottleneck(rows.map((r) => ({ id: r.id, ops: parseRoute(r.route, r.id) }))); if (sb.Cmax > sb.C0) return { rows }; } return this.examples[0]; },
+  solve(data) {
+    const jobs = prepJobs(data, this.cols).map((j) => ({ id: j.id, _i: j._i, ops: parseRoute(j.route, j.id) }));
+    jobs.forEach((J) => { const ms = J.ops.map((o) => o.m); if (new Set(ms).size !== ms.length) throw new Error(`Job ${J.id}: passa due volte sulla stessa macchina, qui non è gestito.`); });
+    const sb = shiftingBottleneck(jobs);
+    const G0 = sbGraph(jobs, {});
+    const steps = [{ t: 'Disegna il grafo', x: `<p>Ogni riga è un job, ogni nodo un'operazione (macchina · durata). Sotto ogni nodo c'è r = istante più presto in cui può iniziare.</p><p>C<sub>max</sub> iniziale = job più lungo = max(${jobs.map((J) => fmt(J.ops.reduce((s, o) => s + o.p, 0))).join(', ')}) = <b>${fmt(sb.C0)}</b>.</p>`, v: jobGraph(jobs, {}, G0) }];
+    let fixedNow = {};
+    sb.iters.forEach((it, n) => {
+      let x = `<p>C<sub>max</sub> attuale = <b>${fmt(it.Cmax)}</b>. Per ogni macchina libera calcolo r e d (d = C<sub>max</sub> − coda) e risolvo 1 | r<sub>j</sub> | L<sub>max</sub>:</p>`;
+      let v = '<div class="kids">';
+      it.subs.forEach((s) => {
+        const isBn = s.m === it.bottleneck && !it.allFixed;
+        v += `<div class="kid${isBn ? ' win' : ''}"><div><b>${esc(s.m)}</b> → sequenza ${seqStr(s.seq.map((j) => jobs[j].id))}, L<sub>max</sub> = <b>${fmt(s.Lmax)}</b>${isBn ? ' <span class="pill acc">collo di bottiglia</span>' : ''}</div>` + htbl([['job', ...s.jobs.map((j) => j.id)], ['p', ...s.jobs.map((j) => j.p)], ['r', ...s.jobs.map((j) => j.r)], ['d', ...s.jobs.map((j) => j.d)]]) + `<button type="button" class="btn small" data-bnb='${esc(JSON.stringify(s.jobs.map((j) => ({ id: j.id, p: j.p, r: j.r, d: j.d }))))}'>Risolvilo passo passo nel B&amp;B</button></div>`;
+      });
+      v += '</div>';
+      if (it.allFixed) {
+        x += `<p>Tutti gli L<sub>max</sub> sono ≤ 0: fisso tutte le sequenze trovate. C<sub>max</sub> resta <b>${fmt(it.CmaxAfter)}</b>.</p>`;
+      } else {
+        const bn = it.subs.find((s) => s.m === it.bottleneck);
+        const ties = it.subs.filter((s) => s.Lmax === bn.Lmax).length > 1;
+        x += `<p>L<sub>max</sub> più grande: <b>${esc(bn.m)}</b> (${fmt(bn.Lmax)})${ties ? ', a pari merito con altre: scelgo quella con numero più basso' : ''}. Fisso la sua sequenza ${seqStr(bn.seq.map((j) => jobs[j].id))} aggiungendo gli archi colorati.</p><p>Nuovo C<sub>max</sub> = ${fmt(it.Cmax)} + ${fmt(bn.Lmax)} = <b>${fmt(it.CmaxAfter)}</b>.</p>`;
+      }
+      fixedNow = {};
+      Object.keys(sb.fixed).forEach((m) => { if (m in it.fixedBefore || m === it.bottleneck || it.allFixed) fixedNow[m] = sb.fixed[m]; });
+      steps.push({ t: `Iterazione ${n + 1}`, x, v: v + jobGraph(jobs, fixedNow, sbGraph(jobs, fixedNow)) });
+    });
+    const rows = sb.gantt.map((g) => ({ label: g.m, segs: g.ops.map((o) => ({ s: o.start, e: o.end, txt: jobs[o.j].id, ci: o.j })) }));
+    steps.push({ t: 'Gantt finale (verifica)', x: `<p>Sequenze: ${sb.machines.map((m) => `${esc(m)} ${seqStr(sb.fixed[m].map((j) => jobs[j].id))}`).join(' · ')}.</p><p>Ogni operazione parte appena finisce quella prima nel suo job <i>e</i> quella prima sulla sua macchina. C<sub>max</sub> = <b>${fmt(sb.Cmax)}</b>.</p>`, v: gantt(rows) });
+    return { steps, exam: examBox([`Sequenze: ${sb.machines.map((m) => `${m} ⟨${sb.fixed[m].map((j) => jobs[j].id).join(',')}⟩`).join(' ')}`, `C<sub>max</sub> = ${fmt(sb.C0)} → ${fmt(sb.Cmax)}`, 'Mostra per ogni iterazione la tabella p, r, d e il B&amp;B della macchina scelta, poi il Gantt.']) };
+  },
+});
+
+// ---------------------------------------------------------------- 13 VISITA IN PROFONDITÀ (solo spiegazione)
+ALGOS.push({
+  slug: 'pettine', num: 13, name: 'Visita in profondità', full: 'Flow shop a pettine', nota: 'Fm || C<sub>max</sub> · F̄',
+  goal: 'Partizionare la linea per minimizzare C<sub>max</sub> (q = 1) oppure il flusso medio (q = ∞).',
+  idea: 'Stacchi le prime k sezioni e guardi il caso peggiore tra le due parti. <span class="hl">La parte che resta la risolvi allo stesso modo</span>, ricorsivamente: scendi nell\'albero in profondità.',
+  analog: 'Come tagliare una torta in fette: provi dove fare il primo taglio, e il resto lo tagli con la stessa regola.',
+  recipe: ['q = 1 (min C<sub>max</sub>): Valore(k) = max(C delle prime k sezioni + C del manico, C del pettine senza le prime k).', 'q = ∞ (min F̄): Valore(k) = max(C delle prime k sezioni, C del pettine senza le prime k). Il manico sparisce.', 'Il secondo termine si calcola ricorsivamente con lo stesso schema.', 'Prova k = 1, 2, … e scegli il valore minimo.', 'Ricostruisci la partizione seguendo le scelte ottime (visita in profondità).'],
+  traps: ['Con q = ∞ il C delle prime k sezioni è il flusso nella macchina.', 'È un problema bicriterio: la soluzione per il flusso medio spesso si vede a occhio e può essere ottima anche per C<sub>max</sub>.', 'Manico, sezioni e pettine sono definiti nella teoria delle linee di prodotto.'],
+  cols: null,
+  static: true,
+});
+
+const BYSLUG = new Map(ALGOS.map((a) => [a.slug, a]));
+
+</script>
+<script>
+// ===================== BOOT: pagine, editor, routing =====================
+const app = document.getElementById('app');
+const pick = document.getElementById('pick');
+const DATA = {};
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const strip = (h) => String(h).replace(/<sub>(.*?)<\/sub>/g, '$1').replace(/<sup>(.*?)<\/sup>/g, '^$1').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
+
+function dataOf(a) {
+  if (!DATA[a.slug]) { const ex = a.examples[0]; DATA[a.slug] = { rows: clone(ex.rows || []), extra: clone(ex.extra || {}), ex: 0, note: ex.note }; }
+  return DATA[a.slug];
+}
+
+// ---------- home ----------
+const QUIZ = {
+  start: { q: 'Quante macchine ci sono?', o: [['Una sola', 'm1'], ['Più di una', 'mm']] },
+  m1: { q: 'Il set-up tra un job e l\'altro dipende dalla sequenza?', o: [['Sì', '=gg'], ['No', 'r']] },
+  r: { q: 'I job arrivano in istanti diversi (r<sub>i</sub> diverse)?', o: [['Sì, e minimizzo L<sub>max</sub>', '=bnb'], ['No, tutti pronti a t = 0', 'vinc']] },
+  vinc: { q: 'C\'è un vincolo sul ritardo massimo?', o: [['T<sub>max</sub> = 0, nessuno in ritardo', '=smith'], ['T<sub>max</sub> ≤ Δ, oppure "curva di Pareto"', '=smithmod'], ['Nessun vincolo', 'obj']] },
+  obj: { q: 'Cosa devi minimizzare?', o: [['Una somma: ΣC, ΣF, ΣL, attesa totale o media', '=spt'], ['Una somma pesata: Σw·C', '=wspt'], ['Il ritardo peggiore: L<sub>max</sub> o T<sub>max</sub>', '=edd'], ['Quanti job sono in ritardo: ΣU', '=moore'], ['Il massimo di un costo h(C), con precedenze', '=lawler']] },
+  mm: { q: 'Che officina è?', o: [['Flow shop a 2 macchine con buffer', '=johnson'], ['Flow shop a 2 macchine senza attese (no-wait)', '=gg'], ['Job shop: 2 job e utensili condivisi', '=piano'], ['Job shop con m macchine', '=sb'], ['Flow shop a pettine', '=pettine']] },
+};
+let quizTrail = [];
+function renderQuiz(host) {
+  const last = quizTrail[quizTrail.length - 1];
+  const node = last ? last.to : 'start';
+  let h = '';
+  if (quizTrail.length) h += `<div class="trail">${quizTrail.map((t) => `<span>${t.lbl}</span>`).join('')}</div>`;
+  if (node.startsWith('=')) {
+    const a = BYSLUG.get(node.slice(1));
+    h += `<div class="answer"><span class="eyebrow">Usa</span><h2>${a.num} · ${a.name} <span class="nota">${a.nota}</span></h2><p>${a.idea}</p><div class="btnrow"><a class="btn primary" href="#${a.slug}">Apri la scheda ▶</a><button type="button" class="btn" data-q="reset">Ricomincia</button></div></div>`;
+  } else {
+    const q = QUIZ[node];
+    h += `<p class="q">${q.q}</p><div class="opts">${q.o.map((o, i) => `<button type="button" class="chip" data-q="${i}">${o[0]}</button>`).join('')}</div>`;
+    if (quizTrail.length) h += `<div><button type="button" class="btn" data-q="back">◀ Indietro</button></div>`;
+  }
+  host.innerHTML = h;
+  host.onclick = (e) => {
+    const b = e.target.closest('[data-q]');
+    if (!b) return;
+    const v = b.dataset.q;
+    if (v === 'reset') quizTrail = [];
+    else if (v === 'back') quizTrail.pop();
+    else { const o = QUIZ[node].o[+v]; quizTrail.push({ lbl: o[0], to: o[1] }); }
+    renderQuiz(host);
+  };
+}
+function renderHome() {
+  const meas = [
+    ['C<sub>k</sub>', 'p<sub>1</sub> + … + p<sub>k</sub>', 'completamento del k-esimo job (tutti pronti a 0, senza tempi morti)'],
+    ['C<sub>i</sub> con r<sub>i</sub>', 'max(C<sub>prec</sub>, r<sub>i</sub>) + p<sub>i</sub>', 'il job non parte prima del suo rilascio'],
+    ['C<sub>max</sub>', 'max C<sub>i</sub>', 'makespan; con una macchina e niente tempi morti = Σp (+ set-up)'],
+    ['F<sub>i</sub>', 'C<sub>i</sub> − r<sub>i</sub>', 'flusso: tempo passato nel sistema'],
+    ['L<sub>i</sub>', 'C<sub>i</sub> − d<sub>i</sub>', 'lateness, negativa se in anticipo'],
+    ['T<sub>i</sub>', 'max(0, C<sub>i</sub> − d<sub>i</sub>)', 'tardiness: solo il ritardo'],
+    ['E<sub>i</sub>', 'max(0, d<sub>i</sub> − C<sub>i</sub>)', 'anticipo'],
+    ['U<sub>i</sub>', '1 se L<sub>i</sub> &gt; 0, altrimenti 0', 'ΣU = numero di job in ritardo'],
+    ['attesa', 'C<sub>i</sub> − p<sub>i</sub> − r<sub>i</sub>', 'tempo passato in coda'],
+  ];
+  app.innerHTML = `
+  <section class="card">
+    <span class="eyebrow">SPIL · Scheduling</span>
+    <h1>Dispense Scheduling</h1>
+    <p>I 13 algoritmi di scheduling del corso. Per ognuno: l'idea in parole semplici, la ricetta, e un esercizio che puoi modificare e risolvere passo per passo, con Gantt, alberi e grafici disegnati.</p>
+    <p class="small muted">Come usarla per l'esame: risolvi prima su carta, poi premi <b>Avanti</b> e controlla un passo alla volta. Con <b>Esercizio casuale</b> hai numeri sempre nuovi.</p>
+  </section>
+  <section class="card"><h2>Quale algoritmo uso?</h2><p class="small muted">Rispondi leggendo il testo dell'esercizio.</p><div class="quiz" id="quiz"></div></section>
+  <section class="card"><h2>I 13 algoritmi</h2><div class="home-grid">${ALGOS.map((a) => `<a class="algo-link" href="#${a.slug}"><span class="n">${a.num}</span><span class="t">${a.name}</span><span class="s">${a.nota}</span></a>`).join('')}</div></section>
+  <section class="card"><h2>Notazione α | β | γ</h2><p>α = l'officina (1 macchina, F2 flow shop, J2 o Jm job shop); β = i vincoli (r<sub>i</sub> rilasci, prec precedenze, s<sub>ij</sub> set-up, prmp interruzioni); γ = cosa minimizzi.</p>${tbl(['misura', 'formula', 'significato'], meas.map((m) => [{ h: `<b>${m[0]}</b>` }, { h: m[1] }, { h: m[2], c: '' }]))}</section>`;
+  renderQuiz(document.getElementById('quiz'));
+}
+
+// ---------- scheda algoritmo ----------
+function editorHTML(a, d) {
+  let h = '';
+  if (a.cols) {
+    h += `<div class="scroll"><table class="dt ed"><tr><th>job</th>${a.cols.map((c) => `<th>${c.l}</th>`).join('')}<th></th></tr>`;
+    d.rows.forEach((r, i) => {
+      h += `<tr><td><input id="in-${i}-id" data-r="${i}" data-k="id" value="${esc(r.id ?? '')}" aria-label="Nome del job ${i + 1}"></td>`;
+      h += a.cols.map((c) => `<td><input id="in-${i}-${c.k}" data-r="${i}" data-k="${c.k}" value="${esc(r[c.k] ?? '')}" ${c.type === 'txt' ? `class="wide"${c.wide && a.slug === 'sb' ? ' style="width:14em"' : ''}` : 'inputmode="decimal"'} aria-label="${esc(strip(c.l))} del job ${i + 1}"></td>`).join('');
+      h += `<td><button type="button" class="x" data-del="${i}" aria-label="Togli il job ${i + 1}">✕</button></td></tr>`;
+    });
+    h += `</table></div><div class="btnrow"><button type="button" class="btn" data-add="1">+ Aggiungi job</button></div>`;
+  }
+  (a.extras || []).forEach((e) => { h += `<div class="field"><label for="ex-${e.k}">${e.l}</label><input type="text" id="ex-${e.k}" data-x="${e.k}" value="${esc((d.extra || {})[e.k] ?? '')}" placeholder="${esc(e.ph || '')}" autocomplete="off"></div>`; });
+  if (a.help) h += a.help;
+  return h;
+}
+function renderAlgo(a) {
+  const head = `<article class="card"><div class="algohead"><div class="num">${a.num}</div><h1>${a.name}</h1><p class="muted">${a.full} · <span class="nota">${a.nota}</span></p></div><p><span class="eyebrow">Obiettivo</span> ${a.goal}</p><div class="idea"><p>${a.idea}</p><p class="analog">${a.analog}</p></div></article>`;
+  const recipe = `<section class="card"><h2>La ricetta</h2><ol class="recipe">${a.recipe.map((r) => `<li>${r}</li>`).join('')}</ol></section>`;
+  const traps = `<section class="card"><h2>Occhio a</h2><ul class="traps">${a.traps.map((r) => `<li>${r}</li>`).join('')}</ul></section>`;
+  const nav = navLinks(a);
+  if (a.static) { app.innerHTML = head + recipe + traps + nav; return; }
+  app.innerHTML = head + recipe + `
+  <section class="card" id="lab"><h2>Prova con i numeri</h2>
+    <div class="exrow" id="exrow"></div>
+    <p class="small muted" id="exnote"></p>
+    <div id="editor" class="stepper"></div>
+    <div class="err" id="err" hidden></div>
+  </section>
+  <section class="card"><h2>Passo per passo</h2><div id="steps" class="stepper"></div></section>
+  <div id="exam"></div>` + traps + nav;
+  const d = dataOf(a);
+  const exrow = document.getElementById('exrow'), exnote = document.getElementById('exnote'), editor = document.getElementById('editor');
+  const drawChips = () => {
+    exrow.innerHTML = a.examples.map((ex, i) => `<button type="button" class="chip" data-ex="${i}" aria-pressed="${d.ex === i}">${esc(ex.name)}</button>`).join('') + `<button type="button" class="chip" data-ex="rnd" aria-pressed="${d.ex === 'rnd'}">Esercizio casuale</button>`;
+    exnote.innerHTML = d.note || '';
+  };
+  const drawEditor = () => { editor.innerHTML = editorHTML(a, d); };
+  let timer = null;
+  const run = () => {
+    const err = document.getElementById('err');
+    try {
+      const out = a.solve(d);
+      err.hidden = true;
+      stepper(document.getElementById('steps'), out.steps, a.slug);
+      document.getElementById('exam').innerHTML = out.exam || '';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || String(e);
+      if (!(e instanceof Error) || !/^(Job|Il nome|Aggiungi|Scrivi|Precedenza|Le precedenze|Δ)/.test(e.message)) console.error(e);
+    }
+  };
+  exrow.onclick = (e) => {
+    const b = e.target.closest('[data-ex]');
+    if (!b) return;
+    if (b.dataset.ex === 'rnd') { const r = a.rand(); d.rows = clone(r.rows || []); d.extra = clone(r.extra || {}); d.ex = 'rnd'; d.note = 'Esercizio casuale: risolvilo su carta, poi controlla un passo alla volta.'; }
+    else { const ex = a.examples[+b.dataset.ex]; d.rows = clone(ex.rows || []); d.extra = clone(ex.extra || {}); d.ex = +b.dataset.ex; d.note = ex.note; }
+    stepper.state[a.slug] = { i: 0, all: false };
+    drawChips(); drawEditor(); run();
+  };
+  editor.oninput = (e) => {
+    const t = e.target;
+    if (t.dataset.x) { d.extra = d.extra || {}; d.extra[t.dataset.x] = t.value; }
+    else if (t.dataset.r !== undefined) d.rows[+t.dataset.r][t.dataset.k] = t.value;
+    else return;
+    clearTimeout(timer);
+    timer = setTimeout(run, 350);
+  };
+  editor.onclick = (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.add) {
+      const used = new Set(d.rows.map((r) => r.id));
+      const numeric = d.rows.length && d.rows.every((r) => /^\d+$/.test(r.id));
+      let id = '';
+      if (numeric) { let k = Math.max(...d.rows.map((r) => +r.id)) + 1; id = String(k); }
+      else { id = [...letters].find((l) => !used.has(l)) || 'J' + (d.rows.length + 1); }
+      const row = { id };
+      a.cols.forEach((c) => { row[c.k] = c.type === 'txt' ? (d.rows[d.rows.length - 1] || {})[c.k] || '' : ''; });
+      d.rows.push(row);
+      drawEditor(); run();
+      const first = document.getElementById(`in-${d.rows.length - 1}-${a.cols[0].k}`);
+      if (first) first.focus();
+    } else if (b.dataset.del !== undefined) {
+      d.rows.splice(+b.dataset.del, 1);
+      drawEditor(); run();
+    }
+  };
+  drawChips(); drawEditor(); run();
+}
+function navLinks(a) {
+  const i = ALGOS.indexOf(a);
+  const prev = ALGOS[i - 1], next = ALGOS[i + 1];
+  return `<nav class="btnrow" aria-label="Altre schede">${prev ? `<a class="btn" href="#${prev.slug}">◀ ${prev.num} · ${prev.name}</a>` : '<a class="btn" href="#home">◀ Home</a>'}${next ? `<a class="btn" href="#${next.slug}">${next.num} · ${next.name} ▶</a>` : '<a class="btn" href="#home">Home ▶</a>'}</nav>`;
+}
+
+// apri un sottoproblema dello shifting bottleneck nel B&B
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-bnb]');
+  if (!b) return;
+  const rows = JSON.parse(b.dataset.bnb).map((j) => ({ id: j.id, p: String(j.p), r: String(j.r), d: String(j.d) }));
+  DATA.bnb = { rows, extra: {}, ex: 'sb', note: 'Sottoproblema 1 | r<sub>j</sub> | L<sub>max</sub> preso dallo shifting bottleneck.' };
+  stepper.state.bnb = { i: 0, all: false };
+  location.hash = 'bnb';
+});
+
+// ---------- routing ----------
+pick.innerHTML = `<option value="home">Home · Quale algoritmo?</option>` + ALGOS.map((a) => `<option value="${a.slug}">${a.num} · ${a.name} — ${strip(a.nota)}</option>`).join('');
+pick.onchange = () => { location.hash = pick.value; };
+function route() {
+  const slug = (location.hash || '').replace('#', '') || 'home';
+  const a = BYSLUG.get(slug);
+  pick.value = a ? slug : 'home';
+  if (a) renderAlgo(a);
+  else renderHome();
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+route();
+
+</script>
+</body>
+</html>
