@@ -185,6 +185,13 @@ svg text { font-family: var(--font-mono); fill: var(--ink); }
 .pl-tool { font-size: 12px; font-weight: 600; }
 .ax-lbl { font-size: 10px; fill: var(--muted); }
 
+.fc-wrap { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; }
+svg.fc { width: 100%; height: auto; margin: 0 auto; }
+svg .fc-n { fill: var(--card); stroke: var(--accent); stroke-width: 1.4; }
+svg .fc-term { stroke-width: 1.8; }
+svg .fc-t { font-family: var(--font-body); font-size: 12.5px; fill: var(--ink); }
+svg .fc-e { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+svg .fc-l { font-family: var(--font-body); font-size: 11.5px; fill: var(--muted); font-weight: 600; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
 .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .algo-link { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px; }
 .algo-link:hover { border-color: var(--accent); }
@@ -1056,6 +1063,112 @@ const num = (v) => { const s = String(v ?? '').trim().replace(',', '.'); if (s =
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
+// ---------- diagramma di flusso ----------
+// spec.rows: [nodo | [nodoSx, nodoDx]] ; nodo = {id, k:'t'|'p'|'d', s:'testo con _{pedice}', go:[[id, etichetta]], end}
+function flowchart(spec) {
+  const LH = 15, CW = 6.1, W1 = 236, WP = 150, GP = 12, ROWG = 34;
+  const vis = (s) => s.replace(/_\{([^}]*)\}/g, '$1');
+  const wrap = (s, maxc) => {
+    const out = [];
+    s.split('\n').forEach((part) => {
+      let cur = '';
+      part.split(' ').forEach((w) => {
+        const nx = cur ? cur + ' ' + w : w;
+        if (vis(nx).length <= maxc || !cur) cur = nx; else { out.push(cur); cur = w; }
+      });
+      out.push(cur);
+    });
+    return out;
+  };
+  const rich = (s) => {
+    let h = '', down = false;
+    s.split(/(_\{[^}]*\})/).forEach((seg) => {
+      if (!seg) return;
+      const m = /^_\{([^}]*)\}$/.exec(seg);
+      if (m) { h += `<tspan dy="3.5" style="font-size:0.75em">${esc(m[1])}</tspan>`; down = true; }
+      else { h += `<tspan${down ? ' dy="-3.5"' : ''}>${esc(seg)}</tspan>`; down = false; }
+    });
+    return h;
+  };
+  const rows = spec.rows.map((r) => (Array.isArray(r) ? r : [r]));
+  const byId = {};
+  let y = 0;
+  rows.forEach((arr, ri) => {
+    const pair = arr.length === 2;
+    arr.forEach((n, ci) => {
+      n.row = ri;
+      if (n.k === 'd') {
+        n.lines = wrap(n.s, 19);
+        const tw = Math.max(...n.lines.map((l) => vis(l).length)) * CW, th = n.lines.length * LH;
+        n.w = Math.min(250, Math.max(132, 2 * tw + 18));
+        n.h = Math.max(70, th / Math.max(0.35, 1 - tw / n.w) + 14);
+      } else {
+        n.w = pair ? WP : W1;
+        n.lines = wrap(n.s, Math.floor((n.w - 18) / CW));
+        n.h = n.lines.length * LH + 14;
+      }
+      n.cx = pair ? (ci === 0 ? -(WP + GP) / 2 : (WP + GP) / 2) : 0;
+      byId[n.id] = n;
+    });
+    const hr = Math.max(...arr.map((n) => n.h));
+    arr.forEach((n) => { n.cy = y + hr / 2; });
+    y += hr + ROWG;
+  });
+  const H = y - ROWG;
+  // archi
+  const edges = [];
+  rows.forEach((arr, ri) => arr.forEach((n) => {
+    let go = n.go;
+    if (!go && !n.end && rows[ri + 1]) go = rows[ri + 1].map((m) => [m.id]);
+    (go || []).forEach(([to, lbl]) => { if (!byId[to]) throw new Error('flowchart: nodo ' + to); edges.push({ s: n, t: byId[to], lbl }); });
+  }));
+  const nodesAll = rows.flat();
+  const maxR = Math.max(...nodesAll.map((n) => n.cx + n.w / 2)), minL = Math.min(...nodesAll.map((n) => n.cx - n.w / 2));
+  edges.forEach((e) => { e.kind = e.t.row === e.s.row + 1 ? 'next' : e.t.row > e.s.row ? 'skip' : 'loop'; e.a = Math.min(e.s.row, e.t.row); e.b = Math.max(e.s.row, e.t.row); });
+  ['skip', 'loop'].forEach((kind) => {
+    const L = edges.filter((e) => e.kind === kind).sort((p, q) => (p.b - p.a) - (q.b - q.a));
+    L.forEach((e, i) => { let k = 0; while (L.slice(0, i).some((o) => o.lane === k && o.a <= e.b && e.a <= o.b)) k++; e.lane = k; });
+  });
+  let o = '', lbls = '', x0 = minL, x1 = maxR;
+  const id = ++SVGID;
+  const lab = (x, yy, s, anchor) => {
+    const len = vis(s).length * 5.6;
+    x0 = Math.min(x0, anchor === 'end' ? x - len : x); x1 = Math.max(x1, anchor === 'end' ? x : x + len);
+    lbls += `<text x="${x}" y="${yy}" text-anchor="${anchor}" class="fc-l">${rich(s)}</text>`;
+  };
+  edges.forEach((e) => {
+    const s = e.s, t = e.t;
+    let d;
+    if (e.kind === 'next') {
+      const sx = s.cx, sy = s.cy + s.h / 2, tx = t.cx, ty = t.cy - t.h / 2;
+      if (Math.abs(sx - tx) < 1) { d = `M${sx},${sy} V${ty - 1}`; if (e.lbl) lab(sx + 6, sy + 13, e.lbl, 'start'); }
+      else { const ym = ty - ROWG / 2; d = `M${sx},${sy} V${ym} H${tx} V${ty - 1}`; if (e.lbl) lab(tx + (tx < sx ? -6 : 6), ym - 4, e.lbl, tx < sx ? 'end' : 'start'); }
+    } else if (e.kind === 'skip') {
+      const lx = minL - 16 - 14 * e.lane;
+      const sx = s.cx - s.w / 2, sy = s.cy + (s.k === 'd' ? 0 : 5), tx = t.cx - t.w / 2, ty = t.cy + (t.k === 'd' ? 0 : -5);
+      d = `M${sx},${sy} H${lx} V${ty} H${tx - 1}`;
+      x0 = Math.min(x0, lx);
+      if (e.lbl) lab(sx - 5, sy - 5, e.lbl, 'end');
+    } else {
+      const lx = maxR + 16 + 14 * e.lane;
+      const sx = s.cx + s.w / 2, sy = s.cy + (s.k === 'd' ? 0 : -5), tx = t.cx + t.w / 2, ty = t.cy + (t.k === 'd' ? 0 : 5);
+      d = `M${sx},${sy} H${lx} V${ty} H${tx + 1}`;
+      x1 = Math.max(x1, lx);
+      if (e.lbl) lab(sx + 5, sy - 5, e.lbl, 'start');
+    }
+    o += `<path d="${d}" class="fc-e" marker-end="url(#fa${id})"/>`;
+  });
+  nodesAll.forEach((n) => {
+    const l = n.cx - n.w / 2, tp = n.cy - n.h / 2;
+    if (n.k === 'd') o += `<polygon points="${n.cx},${tp} ${n.cx + n.w / 2},${n.cy} ${n.cx},${tp + n.h} ${l},${n.cy}" class="fc-n"/>`;
+    else o += `<rect x="${l}" y="${tp}" width="${n.w}" height="${n.h}" rx="${n.k === 't' ? Math.min(n.h / 2, 17) : 3}" class="fc-n${n.k === 't' ? ' fc-term' : ''}"/>`;
+    n.lines.forEach((ln, i) => { o += `<text x="${n.cx}" y="${n.cy - ((n.lines.length - 1) * LH) / 2 + i * LH + 4}" text-anchor="middle" class="fc-t">${rich(ln)}</text>`; });
+  });
+  x0 -= 6; x1 += 6;
+  const W = x1 - x0;
+  return `<div class="fc-wrap"><svg viewBox="${x0} -4 ${W} ${H + 8}" class="fc" style="max-width:${Math.round(W * 1.2)}px" role="img" aria-label="Diagramma di flusso"><defs><marker id="fa${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>${o}${lbls}</svg></div>`;
+}
+
 </script>
 <script>
 // ===================== ALGORITMI: spiegazioni + passi =====================
@@ -1672,6 +1785,150 @@ ALGOS.push({
 
 const BYSLUG = new Map(ALGOS.map((a) => [a.slug, a]));
 
+// ---------------------------------------------------------------- diagrammi di flusso
+const FLOW = {
+  spt: { rows: [
+    { id: 'a', k: 't', s: 'Tutti i job disponibili a t = 0' },
+    { id: 'b', k: 'p', s: 'Ordina i job per p_{i} crescente' },
+    { id: 'c', k: 'd', s: 'Due job con lo\nstesso p_{i}?', go: [['d', 'sì'], ['e', 'no']] },
+    { id: 'd', k: 'p', s: 'Prima quello con d_{i} minore' },
+    { id: 'e', k: 'p', s: 'Sequenza fissata' },
+    { id: 'f', k: 'p', s: 'Cumula i tempi:\nC_{k} = p_{1} + … + p_{k}' },
+    { id: 'g', k: 't', s: 'Calcola ΣC_{i}, ΣF_{i}, ΣL_{i}, attese\ne le medie (somma / n)', end: true },
+  ] },
+  wspt: { rows: [
+    { id: 'a', k: 't', s: 'Job con tempi p_{i} e pesi w_{i}' },
+    { id: 'b', k: 'p', s: 'Calcola per ogni job\nil rapporto p_{i} / w_{i}' },
+    { id: 'c', k: 'p', s: 'Ordina per p_{i} / w_{i} crescente\n(cioè w_{i} / p_{i} decrescente)' },
+    { id: 'd', k: 'p', s: 'Cumula i C_{i} nella sequenza' },
+    { id: 'e', k: 't', s: 'Calcola Σ w_{i}C_{i}\n(vale anche per Σ w_{i}F_{i} e Σ w_{i}L_{i})', end: true },
+  ] },
+  edd: { rows: [
+    { id: 'a', k: 't', s: 'Job con due date d_{i}' },
+    { id: 'b', k: 'p', s: 'Ordina per d_{i} crescente' },
+    { id: 'c', k: 'p', s: 'Cumula i C_{i} e calcola\nL_{i} = C_{i} − d_{i}' },
+    { id: 'd', k: 'p', s: 'L_{max} = max L_{i}\nT_{max} = max(0, L_{max})' },
+    { id: 'e', k: 'd', s: 'L_{max} ≤ 0?', go: [['y', 'sì'], ['n', 'no']] },
+    [{ id: 'y', k: 't', s: 'Tutti in tempo:\nT_{max} = 0\nè raggiungibile', end: true }, { id: 'n', k: 't', s: 'Il L_{max} trovato è\nil minimo possibile', end: true }],
+  ] },
+  moore: { rows: [
+    { id: 'a', k: 't', s: 'Ordina tutti i job in EDD' },
+    { id: 'b', k: 'p', s: 'Aggiungi in coda\nil prossimo job EDD' },
+    { id: 'c', k: 'p', s: 'Calcola il suo C_{i}' },
+    { id: 'd', k: 'd', s: 'C_{i} supera d_{i}?', go: [['e', 'sì, è in ritardo'], ['h', 'no, è in tempo']] },
+    { id: 'e', k: 'p', s: 'Tra i job in sequenza\n(compreso l\'ultimo) togli\nquello con p_{i} massimo' },
+    { id: 'f', k: 'p', s: 'Mettilo nella lista\ndei job in ritardo' },
+    { id: 'g', k: 'p', s: 'Ricalcola i C_{i}\ndei job rimasti' },
+    { id: 'h', k: 'd', s: 'Altri job\nda inserire?', go: [['i', 'no'], ['b', 'sì']] },
+    { id: 'i', k: 't', s: 'Sequenza: puntuali in EDD,\npoi i job in ritardo in fondo' },
+    { id: 'j', k: 't', s: 'ΣU_{i} = numero di job tolti', end: true },
+  ] },
+  lawler: { rows: [
+    { id: 'a', k: 't', s: 'τ = C_{max} = Σ p_{i}' },
+    { id: 'b', k: 'p', s: 'Candidati: job non piazzati\ncon tutti i successori\ngià piazzati' },
+    { id: 'c', k: 'p', s: 'Calcola h_{i}(τ)\nper ogni candidato' },
+    { id: 'd', k: 'p', s: 'Metti nell\'ultima posizione\nlibera il candidato con\nh_{i}(τ) minimo' },
+    { id: 'e', k: 'p', s: 'τ = τ − p_{i} del job piazzato' },
+    { id: 'f', k: 'd', s: 'Restano job?', go: [['g', 'no'], ['b', 'sì']] },
+    { id: 'g', k: 't', s: 'Leggi la sequenza dall\'inizio\nF.O. = max h_{i}(C_{i})', end: true },
+  ] },
+  bnb: { rows: [
+    { id: 'a', k: 't', s: 'Radice ‹ ›: nessun job fissato' },
+    { id: 'b', k: 'p', s: 'LB = L_{max} di EDD con preemption:\nin ogni istante lavora il job\ndisponibile con d_{i} minimo' },
+    { id: 'c', k: 'd', s: 'La schedula ha\ninterruzioni?', go: [['d', 'sì'], ['h', 'no']] },
+    { id: 'd', k: 'p', s: 'Figli ‹…, j›: fissa\nil prossimo job j' },
+    { id: 'e', k: 'd', s: 'Un altro job k finirebbe per intero prima che j possa partire?', go: [['f1', 'sì'], ['f2', 'no']] },
+    [{ id: 'f1', k: 'p', s: 'Pruning del figlio j' }, { id: 'f2', k: 'p', s: 'LB del figlio: parte\nfissata + EDD-prmp\nsul resto' }],
+    { id: 'g', k: 'p', s: 'Scegli il nodo aperto\ncon LB minimo', go: [['c']] },
+    { id: 'h', k: 'p', s: 'È ammissibile:\nsoluzione candidata' },
+    { id: 'i', k: 'd', s: 'Soluzione ≤ LB di tutti i nodi aperti?', go: [['j', 'sì'], ['g', 'no']] },
+    { id: 'j', k: 't', s: 'Ottimo: L_{max} minimo', end: true },
+  ] },
+  smith: { rows: [
+    { id: 'a', k: 't', s: 'Controlla con EDD che\nT_{max} = 0 sia possibile' },
+    { id: 'b', k: 'p', s: 'τ = Σ p_{i}' },
+    { id: 'c', k: 'p', s: 'Candidati: job non piazzati\ncon d_{i} ≥ τ' },
+    { id: 'd', k: 'p', s: 'Metti nell\'ultima posizione\nlibera il candidato con\np_{i} massimo' },
+    { id: 'e', k: 'p', s: 'τ = τ − p_{i}' },
+    { id: 'f', k: 'd', s: 'Tutti i rimasti\nhanno d_{i} ≥ τ?', go: [['g', 'sì'], ['c', 'no']] },
+    { id: 'g', k: 'p', s: 'I rimasti vanno in testa\nin ordine SPT' },
+    { id: 'h', k: 't', s: 'Calcola ΣC_{i} e\nF medio = ΣC_{i} / n', end: true },
+  ] },
+  smithmod: { rows: [
+    { id: 'a', k: 't', s: 'Calcola gli estremi' },
+    [{ id: 's', k: 'p', s: 'SPT: F medio minimo,\nil suo T_{max} = Δ_{max}', go: [['c']] }, { id: 'x', k: 'p', s: 'EDD: T_{max} minimo\n= Δ_{min}\n(qui ti fermerai)', end: true }],
+    { id: 'c', k: 'p', s: 'Primo punto della curva:\n(T_{max}, F medio) di SPT' },
+    { id: 'd', k: 'p', s: 'Δ = T_{max} dell\'ultimo punto − 1' },
+    { id: 'e', k: 'p', s: 'Scadenze rilassate:\nd\'_{i} = d_{i} + Δ' },
+    { id: 'f', k: 'p', s: 'Smith con le d\'_{i}' },
+    { id: 'g', k: 'p', s: 'Calcola F medio e T_{max}\ncon le d_{i} originali' },
+    { id: 'h', k: 'p', s: 'Aggiungi il punto (T_{max}, F medio)\ne scarta quelli dominati' },
+    { id: 'i', k: 'd', s: 'T_{max} = Δ_{min}?', go: [['j', 'sì'], ['d', 'no']] },
+    { id: 'j', k: 't', s: 'Curva di Pareto completa:\ncon i pesi scegli il punto', end: true },
+  ] },
+  gg: { rows: [
+    { id: 'a', k: 't', s: 'Ogni job j: stato iniziale a_{j}\ne stato finale b_{j}\nset-up j → k = |a_{k} − b_{j}|' },
+    { id: 'b', k: 'p', s: 'Ordina i b crescenti e rinumera:\nb_{1} ≤ b_{2} ≤ … ≤ b_{n}' },
+    { id: 'c', k: 'p', s: 'Ordina gli a crescenti:\nφ(j) = job con il\nj-esimo a più piccolo' },
+    { id: 'd', k: 'p', s: 'Abbinamento: dopo j viene φ(j)\n(b piccoli con a piccoli)' },
+    { id: 'e', k: 'p', s: 'Disegna il grafo j → φ(j)\ne conta i cicli' },
+    { id: 'f', k: 'd', s: 'Un solo ciclo?', go: [['g', 'no, sottocicli'], ['k', 'sì']] },
+    { id: 'g', k: 'p', s: 'Costo dello scambio j, j+1:\n2 · max(0, min(b_{j+1}, a_{φ(j+1)})\n− max(b_{j}, a_{φ(j)}))' },
+    { id: 'h', k: 'p', s: 'Scegli gli scambi più economici\ntra cicli diversi finché\nne resta uno solo' },
+    { id: 'i', k: 'p', s: 'Classifica gli scambi scelti:\ntipo 1 se b_{j} ≤ a_{φ(j)}\ntipo 2 se b_{j} > a_{φ(j)}' },
+    { id: 'j', k: 'p', s: 'Applica a φ i tipo 1 dal j\npiù grande al più piccolo,\npoi i tipo 2 dal più piccolo' },
+    { id: 'k', k: 't', s: 'Sequenza ottima', end: true },
+  ] },
+  johnson: { rows: [
+    { id: 'a', k: 't', s: 'Tabella p_{i1} su M1 e p_{i2} su M2\nogni job: prima M1, poi M2' },
+    { id: 'b', k: 'p', s: 'Trova il tempo minimo tra\ntutti i p_{i1} e p_{i2} dei job\nnon ancora piazzati' },
+    { id: 'c', k: 'd', s: 'Il minimo è\nsu M1 o su M2?', go: [['l', 'M1'], ['r', 'M2']] },
+    [{ id: 'l', k: 'p', s: 'Job nella prima\nposizione libera\nin testa' }, { id: 'r', k: 'p', s: 'Job nell\'ultima\nposizione libera\nin coda' }],
+    { id: 'e', k: 'p', s: 'Cancella il job' },
+    { id: 'f', k: 'd', s: 'Restano job?', go: [['g', 'no'], ['b', 'sì']] },
+    { id: 'g', k: 't', s: 'Gantt su M1 e M2:\nleggi C_{max}', end: true },
+  ] },
+  piano: { rows: [
+    { id: 'a', k: 't', s: 'Assi: job A in verticale,\njob B in orizzontale,\ntempi cumulati' },
+    { id: 'b', k: 'p', s: 'Rettangolo di conflitto dove\nA_{i} e B_{j} usano lo stesso utensile' },
+    { id: 'c', k: 'p', s: 'Dall\'origine avanza a 45°:\nA e B lavorano insieme' },
+    { id: 'd', k: 'd', s: 'Tocchi un\nrettangolo?', go: [['e', 'sì'], ['i', 'no']] },
+    { id: 'e', k: 'p', s: 'Due figli:\nsopra = A_{i} prima, B aspetta\na destra = B_{j} prima, A aspetta' },
+    { id: 'f', k: 'p', s: 'g = g del padre + max(ΔA, ΔB)\nfino all\'angolo del rettangolo' },
+    { id: 'g', k: 'p', s: 'h = max(residuo A, residuo B)\nstima a finire senza conflitti' },
+    { id: 'h', k: 'p', s: 'Espandi il nodo aperto con\nf = g + h minimo e riparti\na 45° dal suo angolo', go: [['d']] },
+    { id: 'i', k: 'p', s: 'Arrivi alla fine:\nsoluzione di costo C' },
+    { id: 'j', k: 'd', s: 'C ≤ f di tutti\ni nodi aperti?', go: [['k', 'sì'], ['h', 'no']] },
+    { id: 'k', k: 't', s: 'Ottimo: leggi le precedenze\ne disegna il Gantt' },
+    { id: 'l', k: 'd', s: 'Si può duplicare\nun utensile?', go: [['m', 'sì']] },
+    { id: 'm', k: 'p', s: 'Togli i suoi rettangoli\ne rifai la ricerca' },
+    { id: 'n', k: 't', s: 'Conviene se il risparmio\ndi tempo × costo orario\nsupera il costo', end: true },
+  ] },
+  sb: { rows: [
+    { id: 'a', k: 't', s: 'Grafo: un cammino per job,\nnodi = operazioni con p_{ij}' },
+    { id: 'b', k: 'p', s: 'C_{max} iniziale =\ncammino più lungo' },
+    { id: 'c', k: 'p', s: 'r_{ij} = max sugli archi entranti\ndi (r + p) del predecessore' },
+    { id: 'd', k: 'p', s: 'd_{ij} = min sugli archi uscenti\ndi (d − p) del successore,\ncon d = C_{max} alla fine' },
+    { id: 'e', k: 'p', s: 'Per ogni macchina libera\nrisolvi 1|r_{j}|L_{max} con il B&B (scheda 6)' },
+    { id: 'f', k: 'd', s: 'L_{max} più grande\n≤ 0?', go: [['g', 'no'], ['k', 'sì']] },
+    { id: 'g', k: 'p', s: 'Collo di bottiglia =\nmacchina con L_{max} massimo' },
+    { id: 'h', k: 'p', s: 'Fissa la sua sequenza:\narchi di precedenza nel grafo' },
+    { id: 'i', k: 'p', s: 'C_{max} = C_{max} + L_{max}' },
+    { id: 'j', k: 'd', s: 'Restano\nmacchine?', go: [['k', 'no'], ['c', 'sì']] },
+    { id: 'k', k: 'p', s: 'Gantt con le sequenze\ntrovate: verifica' },
+    { id: 'l', k: 't', s: 'C_{max} finale', end: true },
+  ] },
+  pettine: { rows: [
+    { id: 'a', k: 't', s: 'Pettine: manico + sezioni' },
+    { id: 'b', k: 'd', s: 'Obiettivo?', go: [['l', 'q = 1: min C_{max}'], ['r', 'q = ∞: min F medio']] },
+    [{ id: 'l', k: 'p', s: 'Valore(k) = max(\nC prime k sezioni\n+ C manico,\nC pettine senza\nle prime k)' }, { id: 'r', k: 'p', s: 'Valore(k) = max(\nC prime k sezioni,\nC pettine senza\nle prime k)' }],
+    { id: 'c', k: 'p', s: 'Il secondo termine si calcola\nricorsivamente, stesso schema' },
+    { id: 'd', k: 'p', s: 'Prova k = 1, 2, …\ne scegli il valore minimo' },
+    { id: 'e', k: 't', s: 'Ricostruisci seguendo le partizioni\nottime delle prime k sezioni\n(visita in profondità)', end: true },
+  ] },
+};
+ALGOS.forEach((a) => { a.fc = FLOW[a.slug]; });
+
 </script>
 <script>
 // ===================== BOOT: pagine, editor, routing =====================
@@ -1766,7 +2023,8 @@ function renderAlgo(a) {
   const recipe = `<section class="card"><h2>La ricetta</h2><ol class="recipe">${a.recipe.map((r) => `<li>${r}</li>`).join('')}</ol></section>`;
   const traps = `<section class="card"><h2>Occhio a</h2><ul class="traps">${a.traps.map((r) => `<li>${r}</li>`).join('')}</ul></section>`;
   const nav = navLinks(a);
-  if (a.static) { app.innerHTML = head + recipe + traps + nav; return; }
+  const flow = a.fc ? `<section class="card"><h2>Diagramma di flusso</h2>${flowchart(a.fc)}</section>` : '';
+  if (a.static) { app.innerHTML = head + recipe + flow + traps + nav; return; }
   app.innerHTML = head + recipe + `
   <section class="card" id="lab"><h2>Prova con i numeri</h2>
     <div class="exrow" id="exrow"></div>
@@ -1775,7 +2033,7 @@ function renderAlgo(a) {
     <div class="err" id="err" hidden></div>
   </section>
   <section class="card"><h2>Passo per passo</h2><div id="steps" class="stepper"></div></section>
-  <div id="exam"></div>` + traps + nav;
+  <div id="exam"></div>` + flow + traps + nav;
   const d = dataOf(a);
   const exrow = document.getElementById('exrow'), exnote = document.getElementById('exnote'), editor = document.getElementById('editor');
   const drawChips = () => {
